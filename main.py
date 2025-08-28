@@ -83,17 +83,5 @@ app.invoke(Command(resume=answers), config)
 end_state = app.get_state(config)
 print("end state: ", end_state)
 
-# no_questions = len(state.values["questions"])
-# answers = ["need a refresher"] * no_questions
-
-# print("state1: ", state)
-
-# app.update_state(config, {"answers": answers})
-
-
-# app.invoke(Command(resume=answers), config)
-
-# state = app.get_state(config)
-# print("state2: ",state)
-# print(f"{len(state.values["answers"])} == {len(state.values["questions"])}")
- 
+import json
+print(json.dumps(end_state.values["output"], indent=2))

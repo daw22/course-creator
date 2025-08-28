@@ -12,7 +12,7 @@ class Recommendation(BaseModel):
 
 class Prerequisite(BaseModel):
   domain: str = Field(description="domain of the question for this prerequisite")
-  user_assessment: str = Field(description="user's answer for the qustion based on this prerequisite")
+  user_assessment: str = Field(description="user's answer for the question based on this prerequisite")
   recommendation: Recommendation
 
 class CurriculumPrerequisiteAnalysis(BaseModel):

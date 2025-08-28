@@ -1,5 +1,5 @@
 from prerequisite_analyzer.state import AgentState
-from prerequisite_analyzer.schemas import PrerequisitesList, QuestionsList, QuestionOrTitle
+from prerequisite_analyzer.schemas import PrerequisitesList, QuestionsList, QuestionOrTitle, CurriculumPrerequisiteAnalysis
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langgraph.types import interrupt
@@ -69,6 +69,9 @@ def get_prerequisites(state: AgentState):
         2 - signal and systems, Fourier analysis
         3 - programming, Gnu Octave
         4 - basic electronics, python, basic programming concepts
+  Rules:
+  - Don't include general skills as a prerequisite (like problem solving skill, critical thinking, basic computer skills ...)
+  - Number of prerequisites should not execed five
   Finaly: use the PrerequisitesList tool to format your answer
   """
   llm_with_tool = llm.bind_tools([PrerequisitesList])
@@ -101,6 +104,30 @@ def route_human_input(state: AgentState):
   questions = state['questions']
   print(f"questions len: {len(questions)} ** answers len: {len(answers)}")
   if len(answers) == len(questions):
-    return "__end__"
+    return "final_response"
   else:
     return "get_answers"
+  
+def final_response(state: AgentState):
+  sys_prompt = """You are an asistant for a course creator agent
+  Your goal is to create summary of user's proficeincy in prerequsites of a course
+  You will be give the following informations
+  - the course titles
+  - the prerequesites of the coures
+  - the questions asked to the user about the prerequisites alog with the answers from the user
+  Using this information and the CurriculumPrerequisiteAnalysis tool return your analysis
+  """
+  prerequisites_formated = [f"- {prerequisite}\n" for prerequisite in state["prerequisites"]]
+  qa_formated = [f"question: {question}\nanswer: {answer}" for question, answer in zip(state["questions"], state["answers"])]
+  message = f""" coures title: {state["course_title"]}
+  prerequsites:\n{prerequisites_formated}
+  questions:\n{qa_formated}
+  """
+  llm_with_tool = llm.bind_tools([CurriculumPrerequisiteAnalysis])
+  response = llm_with_tool.invoke([SystemMessage(content=sys_prompt), HumanMessage(content=message)])
+  tool_calls = getattr(response, "tool_calls", [])
+  if tool_calls:
+    args = tool_calls[0]["args"]
+    return {"output": args}
+  else:
+    return {"output": None}
