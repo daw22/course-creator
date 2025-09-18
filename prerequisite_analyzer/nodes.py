@@ -43,16 +43,13 @@ def course_title_extractor(state: AgentState):
 
 def route_title_identifier(state: AgentState):
   qort = state["qort"]
-  if qort["course_title"]:
+  if qort["course_title"] and not qort["question"]:
     return "get_prerequisites"
-  if qort["question"]:
+  else:
     return "course_title_response"
-  return "course_title_extractor"
 
 def course_title_response(state: AgentState):
-  question = state["qort"]["question"]
-  answer = interrupt(question)
-  return {"messages": [HumanMessage(content=answer)]}
+  return {}
 
 def get_prerequisites(state: AgentState):
   sys_prompt = """ You are an assistant for a course creator.  
@@ -95,25 +92,23 @@ def prepare_questions(state: AgentState):
   return {"questions": response.tool_calls[0]["args"]["questions"]}
 
 def get_answer(state: AgentState):
-  answers = interrupt("Answer the questions please.")
-  if isinstance(answers, list):
-    return {"answers": answers}
+  return {}
   
 def route_human_input(state: AgentState):
   answers = state['answers']
   questions = state['questions']
   print(f"questions len: {len(questions)} ** answers len: {len(answers)}")
-  if len(answers) == len(questions):
+  if answers and len(answers) == len(questions):
     return "final_response"
   else:
-    return "get_answers"
+    return "get_answer"
   
 def final_response(state: AgentState):
   sys_prompt = """You are an asistant for a course creator agent
   Your goal is to create summary of user's proficeincy in prerequsites of a course
   You will be give the following informations
   - the course titles
-  - the prerequesites of the coures
+  - the prerequesites of the course
   - the questions asked to the user about the prerequisites alog with the answers from the user
   Using this information and the CurriculumPrerequisiteAnalysis tool return your analysis
   """

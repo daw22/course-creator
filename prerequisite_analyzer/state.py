@@ -5,7 +5,7 @@ import operator
 
 class AgentState(MessagesState):
   prerequisites: List[str]
-  questions: Annotated[List[str], operator.add]
+  questions: List[str]
   answers: List[str]
   course_title: Optional[str]
   qort: QuestionOrTitle
