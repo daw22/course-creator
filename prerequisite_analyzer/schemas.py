@@ -37,3 +37,9 @@ class QuestionOrTitle(BaseModel):
   """use this tool to provide the course title or to ask the user more question(to help identify what they want to learn about)"""
   course_title: Optional[str] = Field(description="a course title, if you are confident about what the want to learn about")
   question: Optional[str] = Field(description="a question to ask the user to better understand what they want to learn about")
+
+
+class CourseTargetSuggestion(BaseModel):
+  """Use this tool to suggest an overall target for a course based on its title and the user's proficiency in its prerequisites."""
+  targets: List[str] = Field(description="a collection of realistic and achievable overall targets for the course that aligns with both the course content and the user's current knowledge.")
+  suggested_target: int = Field(description="which target is more suitable for the user based on their proficiency in the prerequisites.")

@@ -1,5 +1,5 @@
 from prerequisite_analyzer.state import AgentState
-from prerequisite_analyzer.schemas import PrerequisitesList, QuestionsList, QuestionOrTitle, CurriculumPrerequisiteAnalysis
+from prerequisite_analyzer.schemas import PrerequisitesList, QuestionsList, QuestionOrTitle, CurriculumPrerequisiteAnalysis, CourseTargetSuggestion
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langgraph.types import interrupt
@@ -68,8 +68,10 @@ def get_prerequisites(state: AgentState):
         3 - programming, python, basic programming concepts
         4 - basic electronics, Gnu Octave
   Rules:
+  - don't include more than 5 prerequisites
+  - Don't include broad prerequisites (like mathematics, programming, physics ...)
+  - Don't include soft skills as a prerequisite (like communication skill, teamwork skill ...)
   - Don't include general skills as a prerequisite (like problem solving skill, critical thinking, basic computer skills ...)
-  - Number of prerequisites should not execed five
   Finaly: use the PrerequisitesList tool to format your answer
   """
   llm_with_tool = llm.bind_tools([PrerequisitesList])
@@ -127,3 +129,34 @@ def final_response(state: AgentState):
     return {"output": args}
   else:
     return {"output": None}
+  
+def suggest_course_target(state: AgentState):
+    sys_prompt = """ You are an assistant for a course creator agent
+    Your role is to suggest an overall target for a course based on its title and the user's proficiency in its prerequisites.
+    
+    You are expected to:
+    - Analyze the course title to understand its scope and objectives.
+    - Review the user's proficiency levels in the identified prerequisites.
+    - Suggest realistic and achievable overall targets for the course that aligns with both the course content and the user's current knowledge that the user can choose from.
+    - sugget which target is more suitable for the user based on their proficiency in the prerequisites.
+    Use the CourseTargetSuggestion tool to format your response.
+    """
+    llm_with_tool = llm.bind_tools([CourseTargetSuggestion])
+    message = f"Course Title: {state['course_title']}\nUser Proficiency Summary: {state['output']['user_knowledge_summary']}"
+    response = llm_with_tool.invoke([SystemMessage(content=sys_prompt), HumanMessage(content=message)])
+    tool_calls = getattr(response, "tool_calls", [])
+    if tool_calls:
+      args = tool_calls[0]["args"]
+      return {"course_target_suggestion": args}
+    else:
+      return {"course_target_suggestion": None}
+    
+def get_course_target(state: AgentState):
+    return {}
+
+def route_course_target(state: AgentState):
+    target = state["course_target"]
+    if target < len(state["course_target_suggestion"]["targets"]):
+        return "END"
+    else:
+        return "get_course_target"

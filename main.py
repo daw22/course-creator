@@ -54,13 +54,16 @@ from uuid import uuid4
 from pydantic import BaseModel
 from typing import List, Optional
 import json
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Answers(BaseModel):
   answers: List[str]
   thread_id: str
 
 class InterruptResume(BaseModel):
-  response: str | list[str]
+  response: str | list[str] | int
   thread_id: str
 
 server = FastAPI()
@@ -87,7 +90,9 @@ async def stream_graph(state: Optional[dict], thread_id: Optional[str]):
           if current_state.next[0] == "course_title_response":
             yield f"{json.dumps({"type": "on_title_clarification", "thread_id": thread_id, "question": current_state.values["qort"]["question"]})}"
           if current_state.next[0] == "get_answer":
-            yield f"{json.dumps({"type": "on_prerequisite_questions", "thread_id": thread_id, "questions": current_state.values["questions"]})}"  
+            yield f"{json.dumps({"type": "on_prerequisite_questions", "thread_id": thread_id, "questions": current_state.values["questions"]})}"
+          if current_state.next[0] == "get_course_target":
+            yield f"{json.dumps({"type": "on_course_target_suggestion", "thread_id": thread_id, "course_target_suggestion": current_state.values["course_target_suggestion"]})}"
         else:
           yield f"{json.dumps({"type": "on_prerequistes_report", "thread_id": thread_id, "output": current_state.values["output"]})}"
 
@@ -108,8 +113,10 @@ async def resume(data: InterruptResume):
   if isinstance(user_response, str) and state.next[0] == "course_title_response":
     user_answer = HumanMessage(content=user_response)
     app.update_state(config, {"messages": [user_answer]})
-  elif isinstance(user_response, list):
+  elif isinstance(user_response, list) and state.next[0] == "get_answer":
     app.update_state(config, {"answers": user_response})
+  elif isinstance(user_response, int) and state.next[0] == "get_course_target":
+    app.update_state(config, {"course_target": user_response})
   else:
     raise HTTPException(403, "Invalid response type")
   return StreamingResponse(stream_graph(state=None, thread_id=data.thread_id), media_type="text/event-stream")
