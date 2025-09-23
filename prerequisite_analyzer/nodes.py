@@ -24,8 +24,9 @@ def course_title_extractor(state: AgentState):
 
   Rules:  
   - Only one of course_title or question should have a value (the other must be None).  
-  - If the user’s request is too broad (e.g. “programming”), ask a narrowing question (e.g. “What programming language?” or “Introductory or advanced?”).  
-  - If the conversation already has 5 back-and-forths, stop asking further questions and return your best guess for the course title.  
+  - If the user’s request is too broad (e.g. “programming”), ask a narrowing question 
+  (e.g. “What programming language?” or “Introductory or advanced?”).  
+  - keep asking the user questions until you have enough to get a reasonably narrow topic 
   - Keep course titles concise (e.g. “Introduction to Python Programming”, not long sentences).
   Conversation:  
   """
@@ -57,15 +58,15 @@ def get_prerequisites(state: AgentState):
 
   Instructions:  
   - Identify at most 5 prerequisites for the given course title (it can be fewer).  
-  - Never list more than 5 prerequisites. If there are more, combine or summarize them so the total is still 5 or fewer.  
-  - Each prerequisite should include relevant sub-topics related to the course.  
+  - Never list more than 5 prerequisites. If there are more, combine or summarize them so the total is still 5.  
+  - Each prerequisite should include relevant sub-topics related to the prerequisite.
     Example: 
       courese_title: Digital signal Analysis
       prerequisites: 
         1 - Maths, linear algebra, calculus, basic trignonometry
         2 - signal and systems, Fourier analysis
-        3 - programming, Gnu Octave
-        4 - basic electronics, python, basic programming concepts
+        3 - programming, python, basic programming concepts
+        4 - basic electronics, Gnu Octave
   Rules:
   - Don't include general skills as a prerequisite (like problem solving skill, critical thinking, basic computer skills ...)
   - Number of prerequisites should not execed five
@@ -80,7 +81,7 @@ def prepare_questions(state: AgentState):
   sys_prompt = """ You are an assistant for a course creator agent, given a list of prerequisites for a course your job is 
   to preprare a question for every prerequesite
   - The aim of every question is to identify the students proficiency on the given topic
-  - Prepare the questions in a way the student can answer like 'need a refresher', 'no experience', 'no refresher needed'
+  - Prepare the questions in a way the student can answer like 'need a refresher', 'no experience', 'comfortable'
   (multiple choise type question) but donot mention how the student should answer
   - The questions should not be to long, maximum of two sentences and 20 words long.
   Finaly: use the QuestionsList tool to format your answer  
@@ -107,7 +108,7 @@ def final_response(state: AgentState):
   sys_prompt = """You are an asistant for a course creator agent
   Your goal is to create summary of user's proficeincy in prerequsites of a course
   You will be give the following informations
-  - the course titles
+  - the course title
   - the prerequesites of the course
   - the questions asked to the user about the prerequisites alog with the answers from the user
   Using this information and the CurriculumPrerequisiteAnalysis tool return your analysis

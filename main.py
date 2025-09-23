@@ -74,9 +74,9 @@ async def stream_graph(state: Optional[dict], thread_id: Optional[str]):
     data = chunk["data"]
     kind = chunk["event"]
     name = chunk["name"]
-    print(chunk)
+    print(chunk, "\n\n")
     current_state = app.get_state(config)
-    print("state: ", current_state)
+    print("state: ", current_state, "\n\n")
     if kind == "on_chain_start":
       if name == "LangGraph":
         yield f"{json.dumps({"type": "on_app_start", "thread_id": thread_id})}"
@@ -88,15 +88,13 @@ async def stream_graph(state: Optional[dict], thread_id: Optional[str]):
             yield f"{json.dumps({"type": "on_title_clarification", "thread_id": thread_id, "question": current_state.values["qort"]["question"]})}"
           if current_state.next[0] == "get_answer":
             yield f"{json.dumps({"type": "on_prerequisite_questions", "thread_id": thread_id, "questions": current_state.values["questions"]})}"  
-          # if not current_state.next and current_state.values["output"]:
-          #   yield f"{json.dumps({"type": "on_prerequiste_verdict", "thread_id": thread_id, "output": current_state.values["output"]})}"
         else:
           yield f"{json.dumps({"type": "on_prerequistes_report", "thread_id": thread_id, "output": current_state.values["output"]})}"
 
 @server.get("/start")
 async def start():
   state = {"messages": [HumanMessage(content="hi")]}
-  return StreamingResponse(stream_graph(state=state, thread_id=None))
+  return StreamingResponse(stream_graph(state=state, thread_id=None), media_type="text/event-stream")
 
 @server.post("/resume")
 async def resume(data: InterruptResume):
@@ -119,35 +117,3 @@ async def resume(data: InterruptResume):
 import uvicorn
 if __name__ == "__main__":
   uvicorn.run(server, host="0.0.0.0", port=8080)
-# #start app
-# app.invoke(state, config)
-
-# state = app.get_state(config) 
-# print(state)
-# # if question asked
-# course_title = state.values["qort"]["course_title"]
-# while course_title == None:
-#   # get question
-#   question = state.values["qort"]["question"]
-#   answer = input(f"question: {question} \nanswer: ")
-#   app.invoke(Command(resume=answer), config)
-#   state = app.get_state(config)
-#   print(state)
-#   course_title = state.values["qort"]["course_title"]
-#   print("coures_title: ", course_title)
-
-# after_title_state = app.get_state(config)
-# print("after title state: ", after_title_state)
-# # after getting course title and generating the questions
-
-# answers = []
-# for question in state.values["questions"]:
-#   answer_pq = input(f"{question} \n answers: ")
-#   answers.append(answer_pq)
-
-# app.invoke(Command(resume=answers), config)
-# end_state = app.get_state(config)
-# print("end state: ", end_state)
-
-# import json
-# print(json.dumps(end_state.values["output"], indent=2))
