@@ -94,7 +94,7 @@ async def stream_graph(state: Optional[dict], thread_id: Optional[str]):
           if current_state.next[0] == "get_course_target":
             yield f"{json.dumps({"type": "on_course_target_suggestion", "thread_id": thread_id, "course_target_suggestion": current_state.values["course_target_suggestion"]})}"
         else:
-          yield f"{json.dumps({"type": "on_prerequistes_report", "thread_id": thread_id, "output": current_state.values["output"]})}"
+          yield f"{json.dumps({"type": "on_prerequistes_report", "thread_id": thread_id, "course_outline": current_state.values["course_outline"]})}"
 
 @server.get("/start")
 async def start():
