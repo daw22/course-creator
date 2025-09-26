@@ -9,9 +9,9 @@ class subtopic(BaseModel):
 
 class Chapter(BaseModel):
     """A major section of the course, typically covering a broad topic."""
-    chapter_title: str
+    chapter_title: str = Field(description="The title of the chapter, a short phrase describing the chapter")
     chapter_target: Optional[str] = Field(description="The target of the chapter")
-    subtopics: List[subtopic] = Field(description="A list of subtopics in the chapter")
+    subtopics: List[subtopic] = Field(description="A list of subtopics in the chapter") 
 
 class CoursePlan(BaseModel):
     """

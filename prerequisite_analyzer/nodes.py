@@ -3,6 +3,8 @@ from prerequisite_analyzer.schemas import PrerequisitesList, QuestionsList, Ques
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langgraph.types import interrupt
+
+from planner.agent import app as planner_app
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -157,6 +159,17 @@ def get_course_target(state: AgentState):
 def route_course_target(state: AgentState):
     target = state["course_target"]
     if target < len(state["course_target_suggestion"]["targets"]):
-        return "END"
+        return "planner_app_runner"
     else:
         return "get_course_target"
+    
+def planner_app_runner(state: AgentState):
+  planner_app_state = {
+    "course_titile": state["course_title"],
+    "learnning_target": state["course_target_suggestion"]["targets"][state["course_target"]],
+    "user_profficency": state["output"]
+  }
+
+  planner_response = planner_app.invoke(planner_app_state)
+  print(f"planner response: {planner_response}")
+  return {"course_outline": planner_response["course_outline"]}

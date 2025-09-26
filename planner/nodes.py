@@ -47,9 +47,7 @@ def course_outline_creator(state: PlannerState):
     - Each chapter in the course outline should have a title and a list of subtopics.
     - use the sub targets to create chapters
     - Make sure the chapters and subtopics are in a logical order.
-    - also specify the target of each sub topic you create with one or two sentence
-    - create further subtopics for each subtopic you create to make the course more comprehensive.
-    - recursively create subtopics for each subtopic until you reach a reasonable depth.
+    - also specify the target of each sub topic you create with one or two sentences
   Final Output:
     - Return a course outline using the CoursePlan tool.
     
@@ -66,22 +64,3 @@ def course_outline_creator(state: PlannerState):
     args = tool_calls[0]["args"]
     return {"course_outline": args["chapters"]}
   return {"course_outline": None}
-
-# def sub_sub_target_creator(state: PlannerState):
-#   sys_msg = """You are an assistant for a course creator agent.
-#   Your role is to create subtargets for a chapter's target, which will be used to create subtopics for the chapter.
-#   You will be provided with the a list of chapters targets and course title.
-  
-#   Responsibilities:
-#     - create subtargets for each chapter target.
-#     - Each subtarget should be a short sentence that describes the content of the subtopic.
-#     - group the subtargets under the chapter they belong to.
-#     - Make sure the subtargets are relevant to the chapter target and the course title and learning target.
-#     - Make sure the subtargets are in a logical order.
-#   Final Output:
-#     - Return a list of chapters with their subtargets using the Chapter and subtopic tools.
-
-#     chapters targets: {chapter_targets}
-#     course title: {course_title}
-#     """
-#   return {}
