@@ -48,14 +48,15 @@ application flow
 from prerequisite_analyzer.agent import app
 from langgraph.types import Command
 from langchain_core.messages import HumanMessage, SystemMessage
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from uuid import uuid4
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Annotated
+from fastapi.security import OAuth2PasswordRequestForm
 import json
 from dotenv import load_dotenv
-
+from datetime import datetime, timezone
 load_dotenv()
 
 class Answers(BaseModel):
@@ -65,6 +66,16 @@ class Answers(BaseModel):
 class InterruptResume(BaseModel):
   response: str | list[str] | int
   thread_id: str
+
+class LoginData(BaseModel):
+  username: str
+  password: str
+
+class SignupData(BaseModel):
+  username: str
+  email: str
+  password: str
+  full_name: str
 
 server = FastAPI()
 
@@ -96,9 +107,10 @@ async def stream_graph(state: Optional[dict], thread_id: Optional[str]):
         else:
           yield f"{json.dumps({"type": "on_prerequistes_report", "thread_id": thread_id, "course_outline": current_state.values["course_outline"]})}"
 
+
 @server.get("/start")
 async def start():
-  state = {"messages": [HumanMessage(content="hi")]}
+  state = {"messages": [HumanMessage(content="Hi")]}
   return StreamingResponse(stream_graph(state=state, thread_id=None), media_type="text/event-stream")
 
 @server.post("/resume")
