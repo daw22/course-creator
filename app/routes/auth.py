@@ -101,7 +101,9 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
     user_profile = db.user_profiles.find_one({"user_id": str(user["_id"])})
     if not user_profile:
         raise HTTPException(status_code=404, detail="User profile not found")
-    profile = UserProfile(**user_profile).model_dump(exclude={"_id", "user_id", "created_at", "updated_at"})
+    user_profile["_id"] = str(user_profile["_id"])
+    user_profile["user_id"] = str(user_profile["user_id"])
+    profile = UserProfile(**user_profile).model_dump(exclude={"id", "user_id", "created_at", "updated_at"})
     return {"access_token": access_token, "token_type": "bearer", "profile": profile}
 
 @router.post("/refresh", response_model=Token)
@@ -123,6 +125,7 @@ async def refresh_token(request: Request):
         raise HTTPException(status_code=401, detail="User not found")
     
     access_token_expires = timedelta(minutes=15)
+    user["_id"] = str(user["_id"])
     access_token = create_access_token(
         data={"sub": user["_id"]}, expires_delta=access_token_expires
     )

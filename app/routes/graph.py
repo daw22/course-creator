@@ -1,3 +1,4 @@
+from bson import ObjectId
 from prerequisite_analyzer.agent import app as graph
 from langgraph.types import Command
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -7,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from uuid import uuid4
 import json
 from app.dependencies import get_current_user
+from app.db.connection import db
 from fastapi import Depends, Request
 
 from fastapi import APIRouter, HTTPException
@@ -20,6 +22,7 @@ class Answers(BaseModel):
 class InterruptResume(BaseModel):
   response: str | list[str] | int
   thread_id: str
+
 async def stream_graph(state: Optional[dict], thread_id: Optional[str]):
   if not thread_id:
     thread_id = str(uuid4())
@@ -50,11 +53,19 @@ async def stream_graph(state: Optional[dict], thread_id: Optional[str]):
 
 @graph_app.get("/start")
 async def start(request: Request):
-  state = {"messages": [HumanMessage(content=f"Hi there! I am {request.state.user.first_name}")]}
-  return StreamingResponse(stream_graph(state=state, thread_id=None), media_type="text/event-stream")
+  state = {"messages": [HumanMessage(content=f"Hi there! I am {request.state.user.first_name}")], "user_id": str(request.state.user.id)}
+  #add the thread_id to the user's profile
+  new_thread_id = str(uuid4())
+  request.state.user.thread_ids.append(new_thread_id)
+  db.user_profiles.update_one({"_id": ObjectId(request.state.user.id)}, {"$push": {"thread_ids": new_thread_id}})
+  return StreamingResponse(stream_graph(state=state, thread_id=new_thread_id), media_type="text/event-stream")
 
 @graph_app.post("/resume")
-async def resume(data: InterruptResume):
+async def resume(request: Request, data: InterruptResume):
+  # check user owns the thread_id
+  user = request.state.user
+  if user.thread_ids is None or data.thread_id not in user.thread_ids:
+    raise HTTPException(403, "You do not have access to this thread_id")
   user_response = data.response
   config = {"configurable": {"thread_id": data.thread_id}}
   state = graph.get_state(config)

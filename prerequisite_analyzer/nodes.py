@@ -5,6 +5,8 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langgraph.types import interrupt
 
 from planner.agent import app as planner_app
+from app.db.shemas import Course
+from app.db.connection import db
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -173,3 +175,13 @@ def planner_app_runner(state: AgentState):
   planner_response = planner_app.invoke(planner_app_state)
   print(f"planner response: {planner_response}")
   return {"course_outline": planner_response["course_outline"]}
+
+def create_course_record(state: AgentState):
+  new_course = Course(
+    title=state["course_title"],
+    target=state["course_target_suggestion"]["targets"][state["course_target"]],
+    outline=state["course_outline"],
+    user_id=state["user_id"]
+  )
+  db.courses.insert_one(new_course.model_dump())
+  return {}

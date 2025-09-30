@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, START, END
 from prerequisite_analyzer.state import AgentState
-from prerequisite_analyzer.nodes import get_prerequisites, prepare_questions, get_answer, route_human_input, suggest_course_target, planner_app_runner
+from prerequisite_analyzer.nodes import get_prerequisites, prepare_questions, get_answer, route_human_input, suggest_course_target, planner_app_runner, create_course_record
 from prerequisite_analyzer.nodes import course_title_extractor, route_title_identifier, course_title_response, final_response, get_course_target, route_course_target
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.checkpoint.mongodb import MongoDBSaver
@@ -26,6 +26,7 @@ graph.add_node("suggest_course_target", suggest_course_target)
 graph.add_node("get_course_target", get_course_target)
 graph.add_node("route_course_target", route_course_target)
 graph.add_node("planner_app_runner", planner_app_runner)
+graph.add_node("create_course_record", create_course_record)
 
 graph.add_edge(START, "course_title_extractor")
 graph.add_conditional_edges("course_title_extractor", route_title_identifier)
@@ -36,4 +37,5 @@ graph.add_conditional_edges("get_answer", route_human_input)
 graph.add_edge("final_response", "suggest_course_target")
 graph.add_edge("suggest_course_target", "get_course_target")
 graph.add_conditional_edges("get_course_target", route_course_target)
+graph.add_edge("planner_app_runner", "create_course_record")
 app = graph.compile(checkpointer=checkpointer, interrupt_before=["course_title_response", "get_answer", "get_course_target"])

@@ -14,3 +14,4 @@ class AgentState(MessagesState):
   course_target_suggestion: CourseTargetSuggestion # the course target suggestion output
   course_target: int
   course_outline: CoursePlan | None # course outline
+  user_id: str
