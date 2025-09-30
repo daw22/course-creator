@@ -57,6 +57,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 import json
 from dotenv import load_dotenv
 from datetime import datetime, timezone
+from app.routes.auth import router as auth_router
+import os
+from pymongo import MongoClient
 load_dotenv()
 
 class Answers(BaseModel):
@@ -78,7 +81,10 @@ class SignupData(BaseModel):
   full_name: str
 
 server = FastAPI()
-
+#db instance
+client = MongoClient(os.getenv("DB_URI"))
+db = client["course_creator"]
+server.include_router(auth_router)
 
 async def stream_graph(state: Optional[dict], thread_id: Optional[str]):
   if not thread_id:
