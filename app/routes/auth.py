@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from bson import ObjectId
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 import jwt
 from pwdlib import PasswordHash
 from datetime import datetime, timedelta, timezone
@@ -7,6 +8,7 @@ from pydantic import BaseModel
 from app.db.shemas import User
 from app.db.connection import db
 from fastapi.security import OAuth2PasswordRequestForm
+from uuid import uuid4
 
 passwored_hasher = PasswordHash.recommended()
 ALGORITHM = "HS256"
@@ -75,7 +77,7 @@ async def signup(data: SignupData):
     return {"message": "User created successfully"}
 
 @router.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
     user = db.users.find_one({"username": form_data.username})
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
@@ -83,8 +85,52 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     if not passwored_hasher.verify(form_data.password, user["hashed_password"]):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     
-    access_token_expires = timedelta(minutes=30)
+    access_token_expires = timedelta(minutes=15)
+    access_token = create_access_token(
+        data={"sub": user["username"]}, expires_delta=access_token_expires
+    )
+    refresh_token_expires = timedelta(days=7)
+    refresh_token = str(uuid4())
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, max_age=7*24*60*60)
+    #store refresh token in db
+    db.refresh_tokens.insert_one({
+        "user_id": str(user["_id"]),
+        "token": refresh_token,
+        "expires_at": datetime.now(timezone.utc) + refresh_token_expires
+    })
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(request: Request):
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token missing")
+    token_data = db.refresh_tokens.find_one({"token": refresh_token})
+    if not token_data or token_data["expires_at"] < datetime.now(timezone.utc):
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+
+    user = db.users.find_one({"_id": ObjectId(token_data["user_id"])})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    access_token_expires = timedelta(minutes=15)
     access_token = create_access_token(
         data={"sub": user["username"]}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/logout")
+async def logout(response: Response, request: Request):
+    response.delete_cookie(key="refresh_token")
+    #delete refresh token from db
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token missing")
+    token_data = db.refresh_tokens.find_one({"token": refresh_token})
+    if not token_data:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    user = db.users.find_one({"_id": ObjectId(token_data["user_id"])})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    db.refresh_tokens.delete_many({"user_id": str(user["_id"])})
+    return {"message": "Logged out successfully"}
