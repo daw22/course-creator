@@ -45,100 +45,21 @@ application flow
 -> 
 """
 
-from prerequisite_analyzer.agent import app
-from langgraph.types import Command
-from langchain_core.messages import HumanMessage, SystemMessage
-from fastapi import FastAPI, HTTPException, Response
-from fastapi.responses import StreamingResponse
-from uuid import uuid4
-from pydantic import BaseModel
-from typing import List, Optional, Annotated
-from fastapi.security import OAuth2PasswordRequestForm
-import json
+
+from fastapi import FastAPI
 from dotenv import load_dotenv
-from datetime import datetime, timezone
 from app.routes.auth import router as auth_router
+from app.routes.graph import graph_app
 import os
 from pymongo import MongoClient
 load_dotenv()
 
-class Answers(BaseModel):
-  answers: List[str]
-  thread_id: str
 
-class InterruptResume(BaseModel):
-  response: str | list[str] | int
-  thread_id: str
-
-class LoginData(BaseModel):
-  username: str
-  password: str
-
-class SignupData(BaseModel):
-  username: str
-  email: str
-  password: str
-  full_name: str
-
-server = FastAPI()
+app = FastAPI()
 #db instance
 client = MongoClient(os.getenv("DB_URI"))
 db = client["course_creator"]
-server.include_router(auth_router)
 
-async def stream_graph(state: Optional[dict], thread_id: Optional[str]):
-  if not thread_id:
-    thread_id = str(uuid4())
-  config = {"configurable": {"thread_id": thread_id}}
-  async for chunk in app.astream_events(state, config, version="v2"):
-    data = chunk["data"]
-    kind = chunk["event"]
-    name = chunk["name"]
-    print(chunk, "\n\n")
-    current_state = app.get_state(config)
-    print("state: ", current_state, "\n\n")
-    if kind == "on_chain_start":
-      if name == "LangGraph":
-        yield f"{json.dumps({"type": "on_app_start", "thread_id": thread_id})}"
-    if kind == "on_chain_end":
-      if name == "LangGraph":
-        current_state = app.get_state(config)
-        if current_state.next:  
-          if current_state.next[0] == "course_title_response":
-            yield f"{json.dumps({"type": "on_title_clarification", "thread_id": thread_id, "question": current_state.values["qort"]["question"]})}"
-          if current_state.next[0] == "get_answer":
-            yield f"{json.dumps({"type": "on_prerequisite_questions", "thread_id": thread_id, "questions": current_state.values["questions"]})}"
-          if current_state.next[0] == "get_course_target":
-            yield f"{json.dumps({"type": "on_course_target_suggestion", "thread_id": thread_id, "course_target_suggestion": current_state.values["course_target_suggestion"]})}"
-        else:
-          yield f"{json.dumps({"type": "on_prerequistes_report", "thread_id": thread_id, "course_outline": current_state.values["course_outline"]})}"
+app.include_router(auth_router)
+app.include_router(graph_app)
 
-
-@server.get("/start")
-async def start():
-  state = {"messages": [HumanMessage(content="Hi")]}
-  return StreamingResponse(stream_graph(state=state, thread_id=None), media_type="text/event-stream")
-
-@server.post("/resume")
-async def resume(data: InterruptResume):
-  user_response = data.response
-  config = {"configurable": {"thread_id": data.thread_id}}
-  state = app.get_state(config)
-  if state is None:
-    raise HTTPException(404, f"thread_id: {data.thread_id} not found!")
-  if not state.next:
-    raise HTTPException(500, "Operation cannot be resumed")
-  if isinstance(user_response, str) and state.next[0] == "course_title_response":
-    user_answer = HumanMessage(content=user_response)
-    app.update_state(config, {"messages": [user_answer]})
-  elif isinstance(user_response, list) and state.next[0] == "get_answer":
-    app.update_state(config, {"answers": user_response})
-  elif isinstance(user_response, int) and state.next[0] == "get_course_target":
-    app.update_state(config, {"course_target": user_response})
-  else:
-    raise HTTPException(403, "Invalid response type")
-  return StreamingResponse(stream_graph(state=None, thread_id=data.thread_id), media_type="text/event-stream")
-
-import uvicorn
-if __name__ == "__main__":
-  uvicorn.run(server, host="0.0.0.0", port=8080)

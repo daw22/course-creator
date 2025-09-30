@@ -5,7 +5,7 @@ from pwdlib import PasswordHash
 from datetime import datetime, timedelta, timezone
 import os
 from pydantic import BaseModel
-from app.db.shemas import User
+from app.db.shemas import User, UserProfile
 from app.db.connection import db
 from fastapi.security import OAuth2PasswordRequestForm
 from uuid import uuid4
@@ -71,12 +71,12 @@ async def signup(data: SignupData):
         "thread_ids": [],
         "courses": []
     }
-    new_profile = db.user_profiles.insert_one({**user_profile, "user_id": str(result.inserted_id)})
+    db.user_profiles.insert_one({**user_profile, "user_id": str(result.inserted_id)})
     if not result.acknowledged:
         raise HTTPException(status_code=500, detail="Failed to create user")
     return {"message": "User created successfully"}
 
-@router.post("/token", response_model=Token)
+@router.post("/token")
 async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
     user = db.users.find_one({"username": form_data.username})
     if not user:
@@ -87,7 +87,7 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
     
     access_token_expires = timedelta(minutes=15)
     access_token = create_access_token(
-        data={"sub": user["username"]}, expires_delta=access_token_expires
+        data={"sub": str(user["_id"])}, expires_delta=access_token_expires
     )
     refresh_token_expires = timedelta(days=7)
     refresh_token = str(uuid4())
@@ -98,7 +98,11 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
         "token": refresh_token,
         "expires_at": datetime.now(timezone.utc) + refresh_token_expires
     })
-    return {"access_token": access_token, "token_type": "bearer"}
+    user_profile = db.user_profiles.find_one({"user_id": str(user["_id"])})
+    if not user_profile:
+        raise HTTPException(status_code=404, detail="User profile not found")
+    profile = UserProfile(**user_profile).model_dump(exclude={"_id", "user_id", "created_at", "updated_at"})
+    return {"access_token": access_token, "token_type": "bearer", "profile": profile}
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(request: Request):
@@ -106,7 +110,12 @@ async def refresh_token(request: Request):
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Refresh token missing")
     token_data = db.refresh_tokens.find_one({"token": refresh_token})
-    if not token_data or token_data["expires_at"] < datetime.now(timezone.utc):
+    if not token_data:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+    expires_at = token_data["expires_at"]
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
     user = db.users.find_one({"_id": ObjectId(token_data["user_id"])})
@@ -115,7 +124,7 @@ async def refresh_token(request: Request):
     
     access_token_expires = timedelta(minutes=15)
     access_token = create_access_token(
-        data={"sub": user["username"]}, expires_delta=access_token_expires
+        data={"sub": user["_id"]}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
