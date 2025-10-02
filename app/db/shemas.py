@@ -71,6 +71,7 @@ class Chapter(BaseModel):
     number_of_subtopics: int
     course_id: PyObjectId
     quiz: list[Question] = []
+    quiz_result: list[int] = []
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)
 

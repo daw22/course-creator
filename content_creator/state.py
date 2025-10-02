@@ -14,5 +14,6 @@ class TopicState(BaseModel):
     content_summary: str
     questions: list[str] = []
     course_progress: list[int]  # [chapter_index, topic_index]
-    quiz: list[str] = []
+    quiz: list = []
     quiz_answers: list[int] = []
+    quiz_results: list[int] = []

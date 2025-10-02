@@ -82,7 +82,7 @@ def summary_and_questions(state: TopicState):
   if result:
     return {
       "content_summary": result.summary,
-      "questions": [q.model_dump() for q in result.questions]
+      "questions": [q.model_dump() for q in result.questions],
     }
   else:
     return {
@@ -102,7 +102,10 @@ def store_content(state: TopicState):
     "chapter_id": state.chapter_id
   }
   db.subtopics.insert_one(new_subtopic)
-  return {}
+  return {"course_progress": [state.course_progress[0], state.course_progress[1] + 1] 
+          if state.course_progress[1] + 1 < db.chapters.find_one({"_id": state.chapter_id})["number_of_subtopics"] 
+          else [state.course_progress[0] + 1, 0]
+}
 
 def chapter_router(state: TopicState):
   #check if this is the last topic in the chapter
@@ -125,18 +128,29 @@ def create_quiz(state: TopicState):
     {"_id": state.chapter_id},
     {"$set": {"quiz": quiz_questions}}
   )
-  return {}
+  return {"quiz": quiz_questions}
 
 def quiz_time(state: TopicState):
   # interupt for quiz
   return {}
 
 def quiz_router(state: TopicState):
-  # after quiz, check if this is the last chapter in the course
-  course = db.courses.find_one({"_id": state.course_id})
-  if course is None:
-    return "end"
-  if len(course["outline"]) == state.course_progress[0] + 1:
-    return "end"
+  # check if the user repondend with answers and route accordingly
+  if len(state.quiz_answers) == len(state.quiz):
+    return "store_quiz_result"
   else:
-    return "content_creator_runner"
+    return "quiz_time"
+  
+def store_quiz_result(state: TopicState):
+  # store the quiz result
+  # for simplicity, we will just store the number of correct answers
+  correct_answers = 0
+  for i, answer in enumerate(state.quiz_answers):
+    if answer == state.quiz[i].answer:
+      correct_answers += 1
+  # update chapter record with the quiz result
+  db.chapters.update_one(
+    {"_id": state.chapter_id},
+    {"$set": {"quiz_result": [correct_answers, len(state.quiz)]}}
+  )
+  return {"quiz_results": [correct_answers, len(state.quiz)]}
