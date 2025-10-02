@@ -11,6 +11,8 @@ class Chapter(BaseModel):
     """A major section of the course, typically covering a broad topic."""
     chapter_title: str = Field(description="The title of the chapter, a short phrase describing the chapter")
     chapter_target: Optional[str] = Field(description="The target of the chapter")
+    chapter_number: int = Field(description="The order of the chapter in the course, the first chapter should be 1")
+    number_of_subtopics: int = Field(description="The number of subtopics in the chapter")
     subtopics: List[subtopic] = Field(description="A list of subtopics in the chapter") 
 
 class CoursePlan(BaseModel):

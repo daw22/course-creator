@@ -57,3 +57,33 @@ class Course(BaseModel):
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)
     user_id: PyObjectId
+
+class Question(BaseModel):
+    question: str
+    answer: int
+    choices: list[str]
+
+class Chapter(BaseModel):
+    id: str = Field(default_factory=lambda: str(PyObjectId()), alias="_id")
+    title: str
+    target: str
+    order: int
+    number_of_subtopics: int
+    course_id: PyObjectId
+    summary: str = ""
+    quiz: list[Question] = []
+    created_at: datetime = datetime.now(timezone.utc)
+    updated_at: datetime = datetime.now(timezone.utc)
+
+
+class Subtopic(BaseModel):
+    id: str = Field(default_factory=lambda: str(PyObjectId()), alias="_id")
+    title: str
+    content: str
+    target: str
+    order: int
+    summary: str
+    questions: list[Question] = []
+    chapter_id: PyObjectId
+    created_at: datetime = datetime.now(timezone.utc)
+    updated_at: datetime = datetime.now(timezone.utc)

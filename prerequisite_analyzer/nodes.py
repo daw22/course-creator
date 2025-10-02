@@ -104,7 +104,6 @@ def get_answer(state: AgentState):
 def route_human_input(state: AgentState):
   answers = state['answers']
   questions = state['questions']
-  print(f"questions len: {len(questions)} ** answers len: {len(answers)}")
   if answers and len(answers) == len(questions):
     return "final_response"
   else:
@@ -173,7 +172,7 @@ def planner_app_runner(state: AgentState):
   }
 
   planner_response = planner_app.invoke(planner_app_state)
-  print(f"planner response: {planner_response}")
+  #print(f"planner response: {planner_response}")
   return {"course_outline": planner_response["course_outline"]}
 
 def create_course_record(state: AgentState):
@@ -183,5 +182,33 @@ def create_course_record(state: AgentState):
     outline=state["course_outline"],
     user_id=state["user_id"]
   )
-  db.courses.insert_one(new_course.model_dump())
+  result = db.courses.insert_one(new_course.model_dump())
+  return {"course_id": str(result.inserted_id)}
+
+def content_creator_runner(state: AgentState):
+  current_chapter = state["course_outline"][state["course_progress"][0]]
+  current_topic = current_chapter["subtopics"][state["course_progress"][1]]
+
+  #create chapter record if current_subtopic is the first topic in the chapter
+  if state["course_progress"][1] == 0:
+    new_chapter = {
+      "title": current_chapter["chapter_title"],
+      "target": current_chapter["chapter_target"],
+      "order": state["course_progress"][0],
+      "number_of_subtopics": len(current_chapter["subtopics"]),
+      "course_id": state["course_id"]
+    }
+    result = db.chapters.insert_one(new_chapter)
+    chapter_id = result.inserted_id
+  # generaete content and update course progress
+  content_creator_state = {
+    "course_id": state["course_id"], # used to update course progress
+    "chapter_id": str(chapter_id), # used to create subtopic record
+    "course_title": state["course_title"],
+    "course_target": state["course_target_suggestion"]["targets"][state["course_target"]],
+    "chapter_title": current_chapter["chapter_title"],
+    "chapter_target": current_chapter["chapter_target"],
+    "topic_title": current_topic["subtopic_title"],
+    "topic_target": current_topic["subtopic_target"],
+  }
   return {}
