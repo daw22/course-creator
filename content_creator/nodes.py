@@ -54,7 +54,6 @@ def generate_content(state: TopicState):
     - Topic Title: {state.topic_title}
     - Topic Target: {state.topic_target}
   """
-
   response = llm.invoke([SystemMessage(content=sys_msg)] + [HumanMessage(content="Generate the content now.")])
   return {"generated_content": response.content}
 
@@ -91,12 +90,53 @@ def summary_and_questions(state: TopicState):
       "questions": []
     }
   
+def store_content(state: TopicState):
+  # create subtopic record
+  new_subtopic = {
+    "title": state.topic_title,
+    "content": state.generated_content,
+    "target": state.topic_target,
+    "order": state.course_progress[1],
+    "summary": state.content_summary,
+    "questions": [q.model_dump() for q in state.questions],
+    "chapter_id": state.chapter_id
+  }
+  db.subtopics.insert_one(new_subtopic)
+  return {}
+
 def chapter_router(state: TopicState):
   #check if this is the last topic in the chapter
   chapter = db.chapters.find_one({"_id": state.chapter_id})
   if chapter is None:
-    return "create_chapter_record"
-  if chapter["number_of_subtopics"] == chapter["course_progress"][1] + 1:
-    return "create_chapter_summary"
+    return "content_creator_runner"
+  if chapter["number_of_subtopics"] == state.course_progress[1] + 1:
+    return "create_quiz"
   else:
-    return "update_chapter_record"
+    return "end"
+  
+def create_quiz(state: TopicState):
+  # get all subtopics in the chapter
+  subtopics = db.subtopics.find_many({"chapter_id": state.chapter_id})
+  quiz_questions = []
+  for subtopic in subtopics:
+    quiz_questions.extend(subtopic["questions"])
+  # update chapter record with the quiz questions
+  db.chapters.update_one(
+    {"_id": state.chapter_id},
+    {"$set": {"quiz": quiz_questions}}
+  )
+  return {}
+
+def quiz_time(state: TopicState):
+  # interupt for quiz
+  return {}
+
+def quiz_router(state: TopicState):
+  # after quiz, check if this is the last chapter in the course
+  course = db.courses.find_one({"_id": state.course_id})
+  if course is None:
+    return "end"
+  if len(course["outline"]) == state.course_progress[0] + 1:
+    return "end"
+  else:
+    return "content_creator_runner"

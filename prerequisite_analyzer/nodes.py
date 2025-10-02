@@ -210,5 +210,6 @@ def content_creator_runner(state: AgentState):
     "chapter_target": current_chapter["chapter_target"],
     "topic_title": current_topic["subtopic_title"],
     "topic_target": current_topic["subtopic_target"],
+    "course_progress": state["course_progress"]
   }
   return {}

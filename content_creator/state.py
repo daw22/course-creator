@@ -13,3 +13,6 @@ class TopicState(BaseModel):
     generated_content: str
     content_summary: str
     questions: list[str] = []
+    course_progress: list[int]  # [chapter_index, topic_index]
+    quiz: list[str] = []
+    quiz_answers: list[int] = []

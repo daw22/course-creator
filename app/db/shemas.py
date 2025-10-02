@@ -70,7 +70,6 @@ class Chapter(BaseModel):
     order: int
     number_of_subtopics: int
     course_id: PyObjectId
-    summary: str = ""
     quiz: list[Question] = []
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)
