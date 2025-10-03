@@ -47,6 +47,8 @@ async def stream_graph(state: Optional[dict], thread_id: Optional[str]):
             yield f"{json.dumps({"type": "on_prerequisite_questions", "thread_id": thread_id, "questions": current_state.values["questions"]})}"
           if current_state.next[0] == "get_course_target":
             yield f"{json.dumps({"type": "on_course_target_suggestion", "thread_id": thread_id, "course_target_suggestion": current_state.values["course_target_suggestion"]})}"
+          if current_state.next[0] == "content_creator_init":
+            yield f"{json.dumps({'type': 'on_content_creation_start', 'thread_id': thread_id, 'course_id': current_state.values['course_id'], 'course_title': current_state.values['course_title']})}"
         else:
           yield f"{json.dumps({"type": "on_prerequistes_report", "thread_id": thread_id, "course_outline": current_state.values["course_outline"]})}"
 
@@ -80,6 +82,9 @@ async def resume(request: Request, data: InterruptResume):
     graph.update_state(config, {"answers": user_response})
   elif isinstance(user_response, int) and state.next[0] == "get_course_target":
     graph.update_state(config, {"course_target": user_response})
+  elif isinstance(user_response, str) and state.next[0] == "content_creator_pause":
+    # don't need to update state just resume
+    pass
   else:
     raise HTTPException(403, "Invalid response type")
   return StreamingResponse(stream_graph(state=None, thread_id=data.thread_id), media_type="text/event-stream")

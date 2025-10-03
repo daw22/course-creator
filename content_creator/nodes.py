@@ -6,6 +6,7 @@ from content_creator.schemas import SummaryAndQuestions
 from app.db.shemas import Course
 from app.db.connection import db
 from dotenv import load_dotenv
+from bson import ObjectId
 
 load_dotenv()
 
@@ -102,30 +103,29 @@ def store_content(state: TopicState):
     "chapter_id": state.chapter_id
   }
   db.subtopics.insert_one(new_subtopic)
+  current_chapter = db.chapters.find_one({"_id": ObjectId(state.chapter_id)})
   return {"course_progress": [state.course_progress[0], state.course_progress[1] + 1] 
-          if state.course_progress[1] + 1 < db.chapters.find_one({"_id": state.chapter_id})["number_of_subtopics"] 
+          if state.course_progress[1] + 1 < current_chapter["number_of_subtopics"] 
           else [state.course_progress[0] + 1, 0]
 }
 
 def chapter_router(state: TopicState):
   #check if this is the last topic in the chapter
-  chapter = db.chapters.find_one({"_id": state.chapter_id})
-  if chapter is None:
-    return "content_creator_runner"
+  chapter = db.chapters.find_one({"_id": ObjectId(state.chapter_id)})
   if chapter["number_of_subtopics"] == state.course_progress[1] + 1:
     return "create_quiz"
   else:
-    return "end"
+    return "__end__"
   
 def create_quiz(state: TopicState):
   # get all subtopics in the chapter
-  subtopics = db.subtopics.find_many({"chapter_id": state.chapter_id})
+  subtopics = db.subtopics.find({"chapter_id": state.chapter_id})
   quiz_questions = []
   for subtopic in subtopics:
     quiz_questions.extend(subtopic["questions"])
   # update chapter record with the quiz questions
   db.chapters.update_one(
-    {"_id": state.chapter_id},
+    {"_id": ObjectId(state.chapter_id)},
     {"$set": {"quiz": quiz_questions}}
   )
   return {"quiz": quiz_questions}
@@ -150,7 +150,9 @@ def store_quiz_result(state: TopicState):
       correct_answers += 1
   # update chapter record with the quiz result
   db.chapters.update_one(
-    {"_id": state.chapter_id},
-    {"$set": {"quiz_result": [correct_answers, len(state.quiz)]}}
+    {"_id": ObjectId(state.chapter_id)},
+    {"$set": {"quiz_result": [correct_answers, len(state.quiz)]}, 
+     "$set": {"quiz_answers": state.quiz_answers},
+     "$set": {"quiz": state.quiz}}
   )
   return {"quiz_results": [correct_answers, len(state.quiz)]}

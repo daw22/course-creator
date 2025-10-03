@@ -5,6 +5,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langgraph.types import interrupt
 
 from planner.agent import app as planner_app
+from content_creator.agent import content_creator_app
 from app.db.shemas import Course
 from app.db.connection import db
 from dotenv import load_dotenv
@@ -185,21 +186,41 @@ def create_course_record(state: AgentState):
   result = db.courses.insert_one(new_course.model_dump())
   return {"course_id": str(result.inserted_id)}
 
-def content_creator_runner(state: AgentState):
-  current_chapter = state["course_outline"][state["course_progress"][0]]
-  current_topic = current_chapter["subtopics"][state["course_progress"][1]]
+def content_creator_pause(state: AgentState):
+  # interupt before content creation
+  return {}
 
+def content_creator_init(state: AgentState):
+  # add safe default for course_progress
+  course_progress = state.get("course_progress", [0, 0])
+  # if all content is created end the process
+  if course_progress[0] >= len(state["course_outline"]) and course_progress[1] >= len(state["course_outline"][course_progress[0]]["subtopics"]):
+    return "__end__"
+  else:
+    return "content_creator_runner"
+
+def content_creator_runner(state: AgentState):
+  # add safe default for course_progress
+  course_progress = state.get("course_progress", [0, 0])
+  current_chapter = state["course_outline"][course_progress[0]]
+  current_topic = current_chapter["subtopics"][course_progress[1]]
+
+  chapter_id = None
   #create chapter record if current_subtopic is the first topic in the chapter
-  if state["course_progress"][1] == 0:
+  if course_progress[1] == 0:
     new_chapter = {
       "title": current_chapter["chapter_title"],
       "target": current_chapter["chapter_target"],
-      "order": state["course_progress"][0],
+      "order": course_progress[0],
       "number_of_subtopics": len(current_chapter["subtopics"]),
       "course_id": state["course_id"]
     }
     result = db.chapters.insert_one(new_chapter)
     chapter_id = result.inserted_id
+  else:
+    # get the chapter id of the current chapter
+    chapter = db.chapters.find_one({"course_id": state["course_id"], "order": course_progress[0]})
+    chapter_id = chapter["_id"]
   # generaete content and update course progress
   content_creator_state = {
     "course_id": state["course_id"], # used to update course progress
@@ -210,6 +231,7 @@ def content_creator_runner(state: AgentState):
     "chapter_target": current_chapter["chapter_target"],
     "topic_title": current_topic["subtopic_title"],
     "topic_target": current_topic["subtopic_target"],
-    "course_progress": state["course_progress"]
+    "course_progress": course_progress
   }
-  return {}
+  content_creator_app_response = content_creator_app.invoke(content_creator_state)
+  return {"course_progress": content_creator_app_response["course_progress"]}
