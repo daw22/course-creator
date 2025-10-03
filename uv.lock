@@ -196,6 +196,7 @@ dependencies = [
     { name = "langchain-google-genai" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-mongodb" },
+    { name = "langgraph-cli" },
     { name = "langsmith" },
     { name = "mongoengine" },
     { name = "pwdlib", extra = ["argon2"] },
@@ -211,8 +212,9 @@ requires-dist = [
     { name = "fastapi", extras = ["standard"], specifier = ">=0.116.1" },
     { name = "langchain-core", specifier = ">=0.3.74" },
     { name = "langchain-google-genai", specifier = ">=2.1.9" },
-    { name = "langgraph", specifier = ">=0.6.6" },
+    { name = "langgraph", extras = ["inmem"], specifier = ">=0.6.6" },
     { name = "langgraph-checkpoint-mongodb", specifier = ">=0.2.1" },
+    { name = "langgraph-cli", specifier = ">=0.4.2" },
     { name = "langsmith", specifier = ">=0.4.16" },
     { name = "mongoengine", specifier = ">=0.29.1" },
     { name = "pwdlib", extras = ["argon2"], specifier = ">=0.2.1" },
@@ -651,6 +653,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/99/6c/a89a95d8a4b962316d4c9ed00fcbaaa2d58acb84b997fc6ecfaa276bbc08/langgraph_checkpoint_mongodb-0.2.1.tar.gz", hash = "sha256:7846f94cb4578836cb2f720ed8686d781aa07de5deb286bca83c9d7b29391ff4", size = 157409, upload-time = "2025-09-25T17:47:58.316Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0d/5b/fbde3f1cb9e4b6d0e06fd0a5b470746ef73f70321c9ad67c65097b3e04d7/langgraph_checkpoint_mongodb-0.2.1-py3-none-any.whl", hash = "sha256:fc7488575568eb27869707ad23cb2cdf7e77a567e7915813acf1e9c7c09f0eb5", size = 12390, upload-time = "2025-09-25T17:47:57.237Z" },
+]
+
+[[package]]
+name = "langgraph-cli"
+version = "0.4.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "langgraph-sdk" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/86/f1/598f9e1784432d790a937de4c466ba8bed3d18ef6f56fe7394af6bc1f175/langgraph_cli-0.4.2.tar.gz", hash = "sha256:074d93a2ebb9c60629a83bc4c149e837bd09e51222d48daacb498299d818ee9f", size = 778645, upload-time = "2025-09-05T22:55:03.37Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d3/35/92c5a0de3f08bbc245ba7c0b1d5f9a7edd025a1483bf4adde97864419825/langgraph_cli-0.4.2-py3-none-any.whl", hash = "sha256:d83b00f11f9840f153aeba5ad417b09cd7a5aa98ab4ad7f94e45fb089ed73785", size = 38045, upload-time = "2025-09-05T22:55:02.044Z" },
 ]
 
 [[package]]

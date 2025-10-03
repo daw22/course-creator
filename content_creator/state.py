@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from content_creator.schemas import Question
 
 
 class TopicState(BaseModel):
@@ -13,8 +14,9 @@ class TopicState(BaseModel):
     topic_target: Optional[str] = None
     generated_content: Optional[str] = None
     content_summary: Optional[str] = None
-    questions: list[str] = []
+    questions: list[Question] = []
     course_progress: list[int] = [0, 0]  # give default
+    last_subtopic: bool = False
     quiz: list = []
     quiz_answers: list[int] = []
     quiz_results: list[int] = []

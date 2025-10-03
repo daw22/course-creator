@@ -21,6 +21,6 @@ content_creator_graph.add_edge("generate_content", "summary_and_questions")
 content_creator_graph.add_edge("summary_and_questions", "store_content")
 content_creator_graph.add_conditional_edges("store_content", chapter_router)
 content_creator_graph.add_edge("create_quiz", "quiz_time")
-content_creator_graph.add_edge("quiz_time", "quiz_router")
+content_creator_graph.add_conditional_edges("quiz_time", quiz_router)
 
 content_creator_app = content_creator_graph.compile(interrupt_before=["quiz_time"])

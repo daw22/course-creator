@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/langchain-ai/langgraph/main/langgraph.schema.json",
+  "entrypoint": "prerequisite_analyzer/agent.py:app",
+  "env": ".env",
+  "graphs": {
+    "prerequisite_analyzer": {
+      "path": "prerequisite_analyzer/agent.py:app"
+    },
+    "content_creator": {
+      "path": "content_creator/agent.py:content_creator_app"
+    },
+    "planner": {
+      "path": "planner/agent.py:app"
+    }
+  },
+  "default_graph": "prerequisite_analyzer",
+  "python": {
+    "package": "./pyproject.toml"
+  },
+  "dependencies": {
+    "prerequisite_analyzer": [
+      "content_creator",
+        "planner"
+    ]
+  }
+}

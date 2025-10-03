@@ -1,6 +1,6 @@
 from bson import ObjectId
 from prerequisite_analyzer.agent import app as graph
-from langgraph.types import Command
+from content_creator.agent import content_creator_app
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 from typing import List, Optional
@@ -82,9 +82,11 @@ async def resume(request: Request, data: InterruptResume):
     graph.update_state(config, {"answers": user_response})
   elif isinstance(user_response, int) and state.next[0] == "get_course_target":
     graph.update_state(config, {"course_target": user_response})
-  elif isinstance(user_response, str) and state.next[0] == "content_creator_pause":
+  elif isinstance(user_response, str) and state.next[0] == "content_creator_pause" or state.next[0] == "content_creator_runner":
     # don't need to update state just resume
     pass
+  elif isinstance(user_response, list) and state.next[0] == "quiz_time":
+    content_creator_app.update_state(config, {"quiz_answers": user_response})
   else:
     raise HTTPException(403, "Invalid response type")
   return StreamingResponse(stream_graph(state=None, thread_id=data.thread_id), media_type="text/event-stream")

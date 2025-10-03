@@ -79,17 +79,12 @@ def summary_and_questions(state: TopicState):
   """
   llm_with_tool = llm.bind_tools([SummaryAndQuestions])
   response = llm_with_tool.invoke([SystemMessage(content=sys_msg), HumanMessage(content="Create the summary and questions now.")])
-  result = getattr(response, "parsed_output", None)
-  if result:
-    return {
-      "content_summary": result.summary,
-      "questions": [q.model_dump() for q in result.questions],
-    }
+  tool_calls = getattr(response, "tool_calls", [])
+  if tool_calls:
+    args = tool_calls[0]["args"]
+    return {"content_summary": args["summary"], "questions": args["questions"]}
   else:
-    return {
-      "content_summary": "",
-      "questions": []
-    }
+    return {"content_summary": None, "questions": []}
   
 def store_content(state: TopicState):
   # create subtopic record
@@ -103,16 +98,14 @@ def store_content(state: TopicState):
     "chapter_id": state.chapter_id
   }
   db.subtopics.insert_one(new_subtopic)
-  current_chapter = db.chapters.find_one({"_id": ObjectId(state.chapter_id)})
   return {"course_progress": [state.course_progress[0], state.course_progress[1] + 1] 
-          if state.course_progress[1] + 1 < current_chapter["number_of_subtopics"] 
+          if not state.last_subtopic 
           else [state.course_progress[0] + 1, 0]
 }
 
 def chapter_router(state: TopicState):
   #check if this is the last topic in the chapter
-  chapter = db.chapters.find_one({"_id": ObjectId(state.chapter_id)})
-  if chapter["number_of_subtopics"] == state.course_progress[1] + 1:
+  if state.last_subtopic:
     return "create_quiz"
   else:
     return "__end__"

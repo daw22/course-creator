@@ -231,7 +231,8 @@ def content_creator_runner(state: AgentState):
     "chapter_target": current_chapter["chapter_target"],
     "topic_title": current_topic["subtopic_title"],
     "topic_target": current_topic["subtopic_target"],
-    "course_progress": course_progress
+    "course_progress": course_progress,
+    "last_subtopic": course_progress[1] == len(current_chapter["subtopics"]) - 1
   }
   content_creator_app_response = content_creator_app.invoke(content_creator_state)
   return {"course_progress": content_creator_app_response["course_progress"]}

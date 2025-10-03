@@ -45,4 +45,5 @@ graph.add_edge("planner_app_runner", "create_course_record")
 graph.add_edge("create_course_record", "content_creator_pause")
 graph.add_conditional_edges("content_creator_pause", content_creator_init)
 graph.add_edge("content_creator_runner", "content_creator_pause")
+
 app = graph.compile(checkpointer=checkpointer, interrupt_before=["course_title_response", "get_answer", "get_course_target", "content_creator_pause"])
