@@ -3,15 +3,9 @@ from prerequisite_analyzer.state import AgentState
 from prerequisite_analyzer.nodes import get_prerequisites, prepare_questions, get_answer, route_human_input, suggest_course_target, planner_app_runner, create_course_record
 from prerequisite_analyzer.nodes import course_title_extractor, route_title_identifier, course_title_response, final_response, get_course_target, route_course_target
 from prerequisite_analyzer.nodes import content_creator_init, content_creator_runner, content_creator_pause
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.checkpoint.mongodb import MongoDBSaver
 
-from pymongo import MongoClient
-
-db_uri = "mongodb://dawit:dawitxxd@localhost:27017/course_creator?retryWrites=true&w=majority"
-client = MongoClient(db_uri)
-db = client.get_database()
-checkpointer = MongoDBSaver(db)
+from app.db.connection import checkpointer
 
 graph = StateGraph(AgentState)
 

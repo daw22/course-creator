@@ -1,9 +1,8 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
-
 from content_creator.state import TopicState
 from content_creator.schemas import SummaryAndQuestions
-from app.db.shemas import Course
+from langgraph.errors import Interrupt
 from app.db.connection import db
 from dotenv import load_dotenv
 from bson import ObjectId
@@ -121,10 +120,9 @@ def create_quiz(state: TopicState):
     {"_id": ObjectId(state.chapter_id)},
     {"$set": {"quiz": quiz_questions}}
   )
-  return {"quiz": quiz_questions}
+  return {"interrupt_reason": "chapter_quiz", "quiz": quiz_questions}
 
 def quiz_time(state: TopicState):
-  # interupt for quiz
   return {}
 
 def quiz_router(state: TopicState):
@@ -148,4 +146,5 @@ def store_quiz_result(state: TopicState):
      "$set": {"quiz_answers": state.quiz_answers},
      "$set": {"quiz": state.quiz}}
   )
+  print("Quiz result stored: ", correct_answers, " out of ", len(state.quiz))
   return {"quiz_results": [correct_answers, len(state.quiz)]}

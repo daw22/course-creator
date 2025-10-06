@@ -3,7 +3,7 @@ from content_creator.nodes import chapter_router, create_quiz, quiz_time, quiz_r
 
 from content_creator.state import TopicState
 from langgraph.graph import StateGraph
-
+from app.db.connection import checkpointer
 
 content_creator_graph = StateGraph(TopicState)
 
@@ -23,4 +23,4 @@ content_creator_graph.add_conditional_edges("store_content", chapter_router)
 content_creator_graph.add_edge("create_quiz", "quiz_time")
 content_creator_graph.add_conditional_edges("quiz_time", quiz_router)
 
-content_creator_app = content_creator_graph.compile(interrupt_before=["quiz_time"])
+content_creator_app = content_creator_graph.compile(checkpointer=checkpointer, interrupt_before=["quiz_time"])

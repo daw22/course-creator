@@ -2,7 +2,7 @@ from prerequisite_analyzer.state import AgentState
 from prerequisite_analyzer.schemas import PrerequisitesList, QuestionsList, QuestionOrTitle, CurriculumPrerequisiteAnalysis, CourseTargetSuggestion
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
-from langgraph.types import interrupt
+from langgraph.errors import Interrupt
 
 from planner.agent import app as planner_app
 from content_creator.agent import content_creator_app

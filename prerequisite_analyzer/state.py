@@ -17,3 +17,4 @@ class AgentState(MessagesState):
   course_progress: list[int] = [0, 0] # [current chapter index, current topic index]
   course_id: str
   user_id: str
+  waiting_on: Optional[str] = None
