@@ -19,5 +19,3 @@ class TopicState(BaseModel):
     last_subtopic: bool = False
     quiz: list = []
     quiz_answers: list[int] = []
-    quiz_results: list[int] = []
-    interrupt_reason: Optional[str] = None

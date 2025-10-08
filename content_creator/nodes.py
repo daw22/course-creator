@@ -2,7 +2,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from content_creator.state import TopicState
 from content_creator.schemas import SummaryAndQuestions
-from langgraph.errors import Interrupt
+from langgraph.types import interrupt
 from app.db.connection import db
 from dotenv import load_dotenv
 from bson import ObjectId
@@ -120,14 +120,15 @@ def create_quiz(state: TopicState):
     {"_id": ObjectId(state.chapter_id)},
     {"$set": {"quiz": quiz_questions}}
   )
-  return {"interrupt_reason": "chapter_quiz", "quiz": quiz_questions}
+  return {"quiz": quiz_questions}
 
 def quiz_time(state: TopicState):
-  return {}
+  answers = interrupt("Please answer the quiz questions.")
+  return {"quiz_answers": answers}
 
 def quiz_router(state: TopicState):
   # check if the user repondend with answers and route accordingly
-  if len(state.quiz_answers) == len(state.quiz):
+  if isinstance(state.quiz_answers, list) and len(state.quiz_answers) == len(state.quiz):
     return "store_quiz_result"
   else:
     return "quiz_time"
@@ -137,14 +138,12 @@ def store_quiz_result(state: TopicState):
   # for simplicity, we will just store the number of correct answers
   correct_answers = 0
   for i, answer in enumerate(state.quiz_answers):
-    if answer == state.quiz[i].answer:
+    if answer == state.quiz[i]["answer"]:
       correct_answers += 1
   # update chapter record with the quiz result
   db.chapters.update_one(
     {"_id": ObjectId(state.chapter_id)},
-    {"$set": {"quiz_result": [correct_answers, len(state.quiz)]}, 
-     "$set": {"quiz_answers": state.quiz_answers},
-     "$set": {"quiz": state.quiz}}
+    {"$set": {"quiz_result": [correct_answers, len(state.quiz)], "quiz_answers": state.quiz_answers}}
   )
   print("Quiz result stored: ", correct_answers, " out of ", len(state.quiz))
   return {"quiz_results": [correct_answers, len(state.quiz)]}

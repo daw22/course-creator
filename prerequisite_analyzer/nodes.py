@@ -2,7 +2,7 @@ from prerequisite_analyzer.state import AgentState
 from prerequisite_analyzer.schemas import PrerequisitesList, QuestionsList, QuestionOrTitle, CurriculumPrerequisiteAnalysis, CourseTargetSuggestion
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
-from langgraph.errors import Interrupt
+from langgraph.types import interrupt
 
 from planner.agent import app as planner_app
 from content_creator.agent import content_creator_app
@@ -55,7 +55,8 @@ def route_title_identifier(state: AgentState):
     return "course_title_response"
 
 def course_title_response(state: AgentState):
-  return {}
+  title_response = interrupt(value="Provide your answer to the clarifying question")
+  return {"messages": state["messages"] + [title_response]}
 
 def get_prerequisites(state: AgentState):
   sys_prompt = """ You are an assistant for a course creator.  
@@ -100,8 +101,9 @@ def prepare_questions(state: AgentState):
   return {"questions": response.tool_calls[0]["args"]["questions"]}
 
 def get_answer(state: AgentState):
-  return {}
-  
+  answers = interrupt(value="Provide your answers to the prerequisite questions")
+  return {"answers": answers}
+
 def route_human_input(state: AgentState):
   answers = state['answers']
   questions = state['questions']
@@ -156,7 +158,8 @@ def suggest_course_target(state: AgentState):
       return {"course_target_suggestion": None}
     
 def get_course_target(state: AgentState):
-    return {}
+    target = interrupt(value="Pick a target for the course")
+    return {"course_target": target}
 
 def route_course_target(state: AgentState):
     target = state["course_target"]
@@ -235,4 +238,9 @@ def content_creator_runner(state: AgentState):
     "last_subtopic": course_progress[1] == len(current_chapter["subtopics"]) - 1
   }
   content_creator_app_response = content_creator_app.invoke(content_creator_state)
-  return {"course_progress": content_creator_app_response["course_progress"]}
+  if content_creator_app_response.get("quiz", None):
+    return {"quiz": content_creator_app_response["quiz"], "course_progress": content_creator_app_response["course_progress"]}
+  if content_creator_app_response.get("quiz_results", None):
+    return {"quiz_results": content_creator_app_response["quiz_results"]}
+  else:
+    return {"course_progress": content_creator_app_response["course_progress"]}
