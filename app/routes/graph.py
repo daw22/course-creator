@@ -25,6 +25,57 @@ class InterruptResume(BaseModel):
   thread_id: str
   resume_from: str
 
+async def stream_graph(input: Command, thread_id: Optional[str], checkpoint_id: Optional[str]= None):
+  if not thread_id:
+    thread_id = str(uuid4())
+  config = {"configurable": {"thread_id": thread_id, "checkpoint_id": checkpoint_id}}
+
+  async for chunk in graph.astream_events(input, config, version="v2"):
+    event = chunk["event"]
+    name = chunk["name"]
+    data = chunk["data"]
+    if event == "on_chain_start":
+      # this are the interrupt nodes
+      if name == "__start__":
+        yield f"{json.dumps({'type': 'on_start', 'thread_id': thread_id})}"
+      if name == "course_title_response":
+        yield f"{json.dumps({'type': 'on_course_title_question', 'thread_id': thread_id, 
+                             'question': data['input']['qort']['question']})}"
+      if name == "get_answer":
+        yield f"{json.dumps({'type': 'on_prerequisite_questions', 'thread_id': thread_id, 
+                             'questions': data['input']['questions']})}"
+      if name == "content_creator_pause":
+        course_outline = data["input"]["course_outline"]
+        course_progress = data["input"].get("course_progress", [0, 0])
+        subtopic_to_generate = course_outline[course_progress[0]]["subtopics"][course_progress[1]]
+        yield f"{json.dumps({'type': 'on_content_creation_start', 'thread_id': thread_id, 
+                             'subtopic_title': subtopic_to_generate['subtopic_title'],
+                             'subtopic_target': subtopic_to_generate['subtopic_target'], 'course_progress': course_progress})}"
+    elif event == "on_llm_stream":
+      if name == "generate_content":
+        yield f"{json.dumps({'type': 'on_content_stream', 'thread_id': thread_id, 'content': chunk['message']['content']})}"
+    elif event == "on_chain_end":
+      if name == "course_title_extractor":
+        if data["output"]["qort"]["course_title"]:
+          yield f"{json.dumps({'type': 'on_course_title_decided', 'thread_id': thread_id, 'course_title': data['output']['course_title']})}"
+      if name == "planner_app_runner":
+        yield f"{json.dumps({'type': 'on_course_outline_generated', 'thread_id': thread_id, 
+                             'course_outline': data['output']['course_outline']})}"
+      if name == "create_course_record":
+        yield f"{json.dumps({'type': 'on_course_record_created', 'thread_id': thread_id, 'course_id': data['output']['course_id']})}"
+      if name == "suggest_course_target":
+        yield f"{json.dumps({'type': 'on_course_target_suggestion', 'thread_id': thread_id, 
+                             'course_target_suggestion': data['output']['course_target_suggestion']})}"
+      if name == "get_course_target":
+        target_index = data['output']['course_target']
+        yield f"{json.dumps({'type': 'on_course_target_picked', 'thread_id': thread_id, 
+                             'course_target_picked': data['output']['course_target_suggestion']['targets'][target_index]})}"
+      if name == "create_quiz":
+        yield f"{json.dumps({'type': 'on_quiz_created', 'thread_id': thread_id, 'quiz': data['output']['quiz']})}"
+      if name == "store_quiz_result":
+        print("Store quiz result node ended:", data['output'])
+        yield f"{json.dumps({'type': 'on_quiz_result_stored', 'thread_id': thread_id, 'quiz_results': data['output']['quiz_results']})}"
+
 async def stream_graph2(input: Command, thread_id: Optional[str], checkpoint_id: Optional[str] = None):
   if not thread_id:
     thread_id= str(uuid4())
@@ -32,13 +83,9 @@ async def stream_graph2(input: Command, thread_id: Optional[str], checkpoint_id:
 
   async for chunk in graph.astream(input, config, stream_mode="updates", subgraphs=True, version="v2"):
     node = list(chunk[1].keys())[0]
+    print(f"Node reached: {node}")
     current_state = graph.get_state(config, subgraphs=True)
     if node == "course_title_extractor":
-      qort = current_state.values.get("qort", None)
-      if qort and qort.get("course_title", None):
-        # course title is decided
-        yield f"{json.dumps({'type': 'on_course_title_decided', 'thread_id': thread_id, 'course_title': qort['course_title']})}"
-    elif node == "course_title_response":
       qort = current_state.values.get("qort", None)
       if qort and qort.get("course_title", None):
         # course title is decided
@@ -52,16 +99,18 @@ async def stream_graph2(input: Command, thread_id: Optional[str], checkpoint_id:
       if course_id:
         yield f"{json.dumps({'type': 'on_course_record_created', 'thread_id': thread_id, 'course_id': course_id})}"
     elif node == "store_content":
-      course_progress = current_state.values.get("course_progress", [0, 0])
-      yield f"{json.dumps({'type': 'on_subtopic_stored', 'thread_id': thread_id, 'course_progress': course_progress})}"
+      course_progress = current_state.values.get("course_progress")
+      if course_progress:
+        yield f"{json.dumps({'type': 'on_subtopic_stored', 'thread_id': thread_id, 'course_progress': course_progress})}"
     elif node == "create_quiz":
       quiz = current_state.values.get("quiz", None)
       yield f"{json.dumps({'type': 'on_quiz_created', 'thread_id': thread_id})}"
-    elif node == "store_quiz_result":
+    elif node == "store_quiz_result":#problematic
+      print("Store quiz result node reached:", current_state.tasks[0].state.values)
       quiz_results = current_state.tasks[0].state.values.get("quiz_results", None)
       yield f"{json.dumps({'type': 'on_quiz_result_stored', 'thread_id': thread_id, 'quiz_results': quiz_results})}"
     elif node == "__interrupt__":
-      print("Interrupt node reached:", current_state)
+      # print("Interrupt node reached:", current_state)
       print("Next nodes:", current_state.next[0] if current_state.next else "None")
       if current_state.next[0] == "course_title_response":
         qort = current_state.values.get("qort", None)
@@ -81,7 +130,7 @@ async def stream_graph2(input: Command, thread_id: Optional[str], checkpoint_id:
         yield f"{json.dumps({'type': 'on_content_creation_start', 'thread_id': thread_id, 'subtopic_title': subtopic_to_generate['subtopic_title'], 'subtopic_target': subtopic_to_generate['subtopic_target']})}"
       elif current_state.next[0] == "content_creator_runner":
         quiz = current_state.tasks[0].state.values.get("quiz", None)
-        yield f"{json.dumps({'type': 'on_quiz_time', 'thread_id': thread_id, 'quiz': quiz})}"   
+        yield f"{json.dumps({'type': 'on_quiz_time', 'thread_id': thread_id, 'quiz': quiz})}"
 
 
 @graph_app.post("/start")
@@ -94,7 +143,7 @@ async def start(request: Request, data: Answers):
   new_thread_id = str(uuid4())
   request.state.user.thread_ids.append(new_thread_id)
   db.user_profiles.update_one({"_id": ObjectId(request.state.user.id)}, {"$push": {"thread_ids": new_thread_id}})
-  return StreamingResponse(stream_graph2(input=state, thread_id=new_thread_id), media_type="text/event-stream")
+  return StreamingResponse(stream_graph(input=state, thread_id=new_thread_id), media_type="text/event-stream")
 
 @graph_app.post("/resume")
 async def resume(request: Request, data: InterruptResume):
@@ -118,12 +167,12 @@ async def resume(request: Request, data: InterruptResume):
     input = Command(resume=user_response)
   elif data.resume_from == "content_creator_start" and state.next[0] == "content_creator_pause":
     # don't need to update state just resume
-    input = None
+    input = Command(resume=user_response)
   elif data.resume_from == "content_creator_resume" and state.next[0] == "content_creator_runner":
     input = Command(resume=user_response)
   else:
     raise HTTPException(403, "Invalid response type")
-  return StreamingResponse(stream_graph2(input=input, thread_id=data.thread_id), media_type="text/event-stream")
+  return StreamingResponse(stream_graph(input=input, thread_id=data.thread_id), media_type="text/event-stream")
 
 # @graph_app.post("/rerunlastnode")
 # async def rerun_last_node(request: Request, data: InterruptResume):
