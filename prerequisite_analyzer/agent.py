@@ -40,4 +40,4 @@ graph.add_edge("create_course_record", "content_creator_pause")
 graph.add_conditional_edges("content_creator_pause", content_creator_init)
 graph.add_edge("content_creator_runner", "content_creator_pause")
 
-app = graph.compile(checkpointer=checkpointer, interrupt_before=["content_creator_pause"])
+app = graph.compile(checkpointer=checkpointer)

@@ -187,10 +187,13 @@ def create_course_record(state: AgentState):
     user_id=state["user_id"]
   )
   result = db.courses.insert_one(new_course.model_dump())
+  # add to user profile
+  db.users.update_one({"_id": state["user_id"]}, {"$push": {"courses": str(result.inserted_id)}})
   return {"course_id": str(result.inserted_id)}
 
 def content_creator_pause(state: AgentState):
   # interupt before content creation
+  start_generating = interrupt("Ready to start content creation.") 
   return {}
 
 def content_creator_init(state: AgentState):
@@ -238,9 +241,4 @@ def content_creator_runner(state: AgentState):
     "last_subtopic": course_progress[1] == len(current_chapter["subtopics"]) - 1
   }
   content_creator_app_response = content_creator_app.invoke(content_creator_state)
-  if content_creator_app_response.get("quiz", None):
-    return {"quiz": content_creator_app_response["quiz"], "course_progress": content_creator_app_response["course_progress"]}
-  if content_creator_app_response.get("quiz_results", None):
-    return {"quiz_results": content_creator_app_response["quiz_results"]}
-  else:
-    return {"course_progress": content_creator_app_response["course_progress"]}
+  return {"course_progress": content_creator_app_response["course_progress"]}
