@@ -17,6 +17,3 @@ class AgentState(MessagesState):
   course_progress: list[int] = [0, 0] # [current chapter index, current topic index]
   course_id: str
   user_id: str
-  quiz: list = []
-  quiz_answers: list[int] = []
-  quiz_results: list[int] = []
