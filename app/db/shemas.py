@@ -1,70 +1,84 @@
-from pydantic import BaseModel, Field, GetCoreSchemaHandler
+from pydantic import BaseModel, Field, GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic_core import core_schema
 from datetime import datetime, timezone
 from bson import ObjectId
+from typing import Any
 
 
+# ------------------------------
+# ✅ Fixed PyObjectId for Pydantic v2
+# ------------------------------
 class PyObjectId(ObjectId):
     @classmethod
-    def __get_pydantic_core_schema__(cls, _source_type, _handler: GetCoreSchemaHandler):
-        # Tell Pydantic how to validate
+    def __get_pydantic_core_schema__(cls, source_type, handler: GetCoreSchemaHandler):
         return core_schema.no_info_after_validator_function(
             cls.validate,
-            core_schema.str_schema()
+            core_schema.str_schema(),
+            serialization=core_schema.to_string_ser_schema(),
         )
 
     @classmethod
-    def validate(cls, v):
+    def validate(cls, v: Any, _info=None):
+        if isinstance(v, ObjectId):
+            return v
         if not ObjectId.is_valid(v):
-            raise ValueError("Invalid ObjectId")
+            raise ValueError(f"Invalid ObjectId: {v}")
         return ObjectId(v)
 
     @classmethod
-    def __get_pydantic_json_schema__(cls, _core_schema, handler):
-        return handler(core_schema.str_schema())
+    def __get_pydantic_json_schema__(cls, schema, handler):
+        json_schema = handler(schema)
+        json_schema.update(type="string")
+        return json_schema
+
 
 class User(BaseModel):
-    id: str = Field(default_factory=lambda: str(PyObjectId()), alias="_id")
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     username: str
     email: str
     hashed_password: str
     role: str
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 
 class UserProfile(BaseModel):
-    id: str = Field(default_factory=lambda: str(PyObjectId()), alias="_id")
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     first_name: str
     last_name: str
     thread_ids: list[str] = []
-    courses: list[str] = []# delete this field later
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
+    courses: list[str] = []  # delete later
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     user_id: PyObjectId
 
 
 class RefreshToken(BaseModel):
-    user_id: str = Field(default_factory=lambda: str(ObjectId()), alias="_id")
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    user_id: PyObjectId
     token: str
-    created_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: datetime
 
+
 class Course(BaseModel):
-    id: str = Field(default_factory=lambda: str(PyObjectId()), alias="_id")
+    id: PyObjectId = Field(default_factory=PyObjectId)
     title: str
     target: str
-    outline: list | None
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
+    outline: list | None = []
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     user_id: PyObjectId
+
 
 class Question(BaseModel):
     question: str
     answer: int
     choices: list[str]
 
+
 class Chapter(BaseModel):
-    id: str = Field(default_factory=lambda: str(PyObjectId()), alias="_id")
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     title: str
     target: str
     order: int
@@ -73,12 +87,12 @@ class Chapter(BaseModel):
     quiz: list[Question] = []
     quiz_result: list[int] = []
     quiz_answers: list[int] = []
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class Subtopic(BaseModel):
-    id: str = Field(default_factory=lambda: str(PyObjectId()), alias="_id")
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     title: str
     content: str
     target: str
@@ -86,5 +100,5 @@ class Subtopic(BaseModel):
     summary: str
     questions: list[Question] = []
     chapter_id: PyObjectId
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

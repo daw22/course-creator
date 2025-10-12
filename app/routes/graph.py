@@ -16,9 +16,11 @@ from langgraph.types import Command
 
 graph_app = APIRouter(prefix="/graph", tags=["graph"], dependencies=[Depends(get_current_user)])
 
-class Answers(BaseModel):
-  answers: List[str] | str
-  thread_id: str | None
+class StartInput(BaseModel):
+  answer: str
+
+class ThreadIdResponse(BaseModel):
+  thread_id: str
 
 class InterruptResume(BaseModel):
   response: Any
@@ -73,9 +75,10 @@ async def stream_graph(input: Command, thread_id: Optional[str], checkpoint_id: 
         yield f"{json.dumps({'type': 'on_course_target_suggestion', 'thread_id': thread_id, 
                              'course_target_suggestion': data['output']['course_target_suggestion']})}"
       if name == "get_course_target":
+        course_target_suggestion = graph.get_state(config).values["course_target_suggestion"]
         target_index = data['output']['course_target']
         yield f"{json.dumps({'type': 'on_course_target_picked', 'thread_id': thread_id, 
-                             'course_target_picked': data['output']['course_target_suggestion']['targets'][target_index]})}"
+                             'course_target_picked': course_target_suggestion['targets'][target_index]})}"
       if name == "create_quiz":
         yield f"{json.dumps({'type': 'on_quiz_created', 'thread_id': thread_id, 'quiz': data['output']['quiz']})}"
       if name == "store_quiz_result":
@@ -84,12 +87,12 @@ async def stream_graph(input: Command, thread_id: Optional[str], checkpoint_id: 
 
 
 @graph_app.post("/start")
-async def start(request: Request, data: Answers):
-  state = {"messages": [HumanMessage(content=f"Hi there! I am {request.state.user.first_name}"), 
+async def start(request: Request, data: StartInput):
+  state = {"messages": [HumanMessage(content=f"Hi there! I am {request.state.user.first_name}"),
                         AIMessage(content=f"Hello {request.state.user.first_name}! What do you want to learn about today?"),
-                        HumanMessage(content=f"{data.answers}")], 
+                        HumanMessage(content=f"{data.answer}")], 
            "user_id": str(request.state.user.id)}
-  #add the thread_id to the user's profile
+  # create and add the new thread_id to the user's profile
   new_thread_id = str(uuid4())
   request.state.user.thread_ids.append(new_thread_id)
   db.user_profiles.update_one({"_id": ObjectId(request.state.user.id)}, {"$push": {"thread_ids": new_thread_id}})
@@ -103,7 +106,7 @@ async def resume(request: Request, data: InterruptResume):
     raise HTTPException(403, "You do not have access to this thread_id")
   user_response = data.response
   config = {"configurable": {"thread_id": data.thread_id}}
-  state = graph.get_state(config)
+  state = graph.get_state(config, subgraphs=True)
   if state is None:
     raise HTTPException(404, f"thread_id: {data.thread_id} not found!")
   if not state.next:
@@ -124,18 +127,18 @@ async def resume(request: Request, data: InterruptResume):
     raise HTTPException(403, "Invalid response type")
   return StreamingResponse(stream_graph(input=input, thread_id=data.thread_id), media_type="text/event-stream")
 
-# @graph_app.post("/rerunlastnode")
-# async def rerun_last_node(request: Request, data: InterruptResume):
-#   # check user owns the thread_id
-#   user = request.state.user
-#   if user.thread_ids is None or data.thread_id not in user.thread_ids:
-#     raise HTTPException(403, "You do not have access to this thread_id")
-#   config = {"configurable": {"thread_id": data.thread_id}}
-#   checkpointers = list(checkpointer.list(config=config))
-#   if len(checkpointers) < 2:
-#     raise HTTPException(400, "No previous state to revert to")
-#   # get the second last checkpointer
-#   checkpoint = checkpointers[-1]
-#   print("Reverting to checkpoint: ", checkpoint.config)
-#   checkpoint_id = checkpoint.config["configurable"]["checkpoint_id"]
-#   return StreamingResponse(stream_graph(input=None, thread_id=data.thread_id, checkpoint_id=checkpoint_id), media_type="text/event-stream")
+@graph_app.post("/rerunlastnode")
+async def rerun_last_node(request: Request, data: ThreadIdResponse):
+  # check user owns the thread_id
+  user = request.state.user
+  if data.thread_id not in user.thread_ids:
+    raise HTTPException(403, "You do not have access to this thread_id")
+  config = {"configurable": {"thread_id": data.thread_id}}
+  checkpointers = list(checkpointer.list(config=config))
+  if len(checkpointers) < 2:
+    raise HTTPException(400, "No previous state to revert to")
+  # get the second last checkpointer
+  checkpoint = checkpointers[-1]
+  print("Reverting to checkpoint: ", checkpoint.config)
+  checkpoint_id = checkpoint.config["configurable"]["checkpoint_id"]
+  return StreamingResponse(stream_graph(input=None, thread_id=data.thread_id, checkpoint_id=checkpoint_id), media_type="text/event-stream")
