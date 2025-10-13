@@ -1,13 +1,10 @@
-from pydantic import BaseModel, Field, GetCoreSchemaHandler, GetJsonSchemaHandler
+from pydantic import BaseModel, ConfigDict, Field, GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic_core import core_schema
 from datetime import datetime, timezone
 from bson import ObjectId
-from typing import Any
+from typing import Any, Optional
 
 
-# ------------------------------
-# ✅ Fixed PyObjectId for Pydantic v2
-# ------------------------------
 class PyObjectId(ObjectId):
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type, handler: GetCoreSchemaHandler):
@@ -43,7 +40,7 @@ class User(BaseModel):
 
 
 class UserProfile(BaseModel):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: PyObjectId = Field(default_factory=None, alias="_id")
     first_name: str
     last_name: str
     thread_ids: list[str] = []
@@ -54,7 +51,7 @@ class UserProfile(BaseModel):
 
 
 class RefreshToken(BaseModel):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: PyObjectId = Field(default_factory=None, alias="_id")
     user_id: PyObjectId
     token: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -62,7 +59,12 @@ class RefreshToken(BaseModel):
 
 
 class Course(BaseModel):
-    id: PyObjectId = Field(default_factory=PyObjectId)
+    model_config = ConfigDict(
+        populate_by_name=True,  # Allow populating model fields by their alias
+        arbitrary_types_allowed=True  # Allow custom types like PyObjectId
+    )
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    thread_id: str
     title: str
     target: str
     outline: list | None = []
@@ -78,7 +80,7 @@ class Question(BaseModel):
 
 
 class Chapter(BaseModel):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: PyObjectId = Field(default_factory=None, alias="_id")
     title: str
     target: str
     order: int
@@ -92,7 +94,7 @@ class Chapter(BaseModel):
 
 
 class Subtopic(BaseModel):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: PyObjectId = Field(default_factory=None, alias="_id")
     title: str
     content: str
     target: str

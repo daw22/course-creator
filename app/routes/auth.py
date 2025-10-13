@@ -37,7 +37,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=720)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, os.getenv("JWT_SECRET"), algorithm=ALGORITHM)
     return encoded_jwt
@@ -85,7 +85,7 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
     if not passwored_hasher.verify(form_data.password, user["hashed_password"]):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     
-    access_token_expires = timedelta(minutes=15)
+    access_token_expires = timedelta(minutes=720)
     access_token = create_access_token(
         data={"sub": str(user["_id"])}, expires_delta=access_token_expires
     )
@@ -124,7 +124,7 @@ async def refresh_token(request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
-    access_token_expires = timedelta(minutes=15)
+    access_token_expires = timedelta(minutes=7*24*60)
     user["_id"] = str(user["_id"])
     access_token = create_access_token(
         data={"sub": user["_id"]}, expires_delta=access_token_expires

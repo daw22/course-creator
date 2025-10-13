@@ -94,7 +94,7 @@ def store_content(state: TopicState):
     "order": state.course_progress[1],
     "summary": state.content_summary,
     "questions": [q.model_dump() for q in state.questions],
-    "chapter_id": state.chapter_id
+    "chapter_id": state.chapter_id,
   }
   db.subtopics.insert_one(new_subtopic)
   return {"course_progress": [state.course_progress[0], state.course_progress[1] + 1] 

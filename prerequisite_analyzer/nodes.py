@@ -3,6 +3,7 @@ from prerequisite_analyzer.schemas import PrerequisitesList, QuestionsList, Ques
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langgraph.types import interrupt
+from langgraph.types import RunnableConfig
 
 from planner.agent import app as planner_app
 from content_creator.agent import content_creator_app
@@ -179,12 +180,13 @@ def planner_app_runner(state: AgentState):
   #print(f"planner response: {planner_response}")
   return {"course_outline": planner_response["course_outline"]}
 
-def create_course_record(state: AgentState):
+def create_course_record(state: AgentState, config: RunnableConfig):
   new_course = Course(
     title=state["course_title"],
     target=state["course_target_suggestion"]["targets"][state["course_target"]],
     outline=state["course_outline"],
-    user_id=state["user_id"]
+    user_id=state["user_id"],
+    thread_id=config["configurable"].get("thread_id", None)
   )
   result = db.courses.insert_one(new_course.model_dump())
   # add to user profile
