@@ -23,6 +23,16 @@ async def get_my_courses(request: Request):
         courses.append(course)
     return {"courses": courses}
 
+@courses_router.get("/{course_id}", response_model=Course)
+async def get_course(course_id: str, request: Request):
+    user = request.state.user
+    course = db.courses.find_one({"_id": ObjectId(course_id), "user_id": ObjectId(user.id)})
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    course["user_id"] = str(course["user_id"])
+    course["_id"] = str(course["_id"])
+    return course
+
 @courses_router.delete("/{course_id}")
 async def delete_course(course_id: str, request: Request):
     user = request.state.user
