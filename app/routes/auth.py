@@ -71,8 +71,8 @@ async def signup(data: SignupData):
         "thread_ids": [],
         "courses": []
     }
-    db.user_profiles.insert_one({**user_profile, "user_id": str(result.inserted_id)})
-    if not result.acknowledged:
+    new_user_profile = db.user_profiles.insert_one({**user_profile, "user_id": str(result.inserted_id)})
+    if not result.acknowledged or not new_user_profile.acknowledged:
         raise HTTPException(status_code=500, detail="Failed to create user")
     return {"message": "User created successfully"}
 
@@ -85,7 +85,7 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
     if not passwored_hasher.verify(form_data.password, user["hashed_password"]):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     
-    access_token_expires = timedelta(minutes=720)
+    access_token_expires = timedelta(minutes=15)
     access_token = create_access_token(
         data={"sub": str(user["_id"])}, expires_delta=access_token_expires
     )

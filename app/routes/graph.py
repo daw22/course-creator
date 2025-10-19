@@ -1,18 +1,17 @@
 from bson import ObjectId
 from prerequisite_analyzer.agent import app as graph
-from content_creator.agent import content_creator_app
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from pydantic import BaseModel
-from typing import List, Optional, Any
+from typing import Any
 from fastapi.responses import StreamingResponse
 from uuid import uuid4
-import json
 from app.dependencies import get_current_user
 from app.db.connection import db
 from fastapi import Depends, Request
 from app.db.connection import checkpointer
 from fastapi import APIRouter, HTTPException
 from langgraph.types import Command
+from app.utils import stream_graph
 
 graph_app = APIRouter(prefix="/graph", tags=["graph"], dependencies=[Depends(get_current_user)])
 
@@ -26,64 +25,6 @@ class InterruptResume(BaseModel):
   response: Any
   thread_id: str
   resume_from: str
-
-async def stream_graph(input: Command, thread_id: Optional[str], checkpoint_id: Optional[str]= None):
-  if not thread_id:
-    thread_id = str(uuid4())
-  config = {"configurable": {"thread_id": thread_id, "checkpoint_id": checkpoint_id}}
-
-  async for chunk in graph.astream_events(input, config, version="v2"):
-    event = chunk["event"]
-    name = chunk["name"]
-    data = chunk["data"]
-    if event == "on_chain_start":
-      # this are the interrupt nodes
-      if name == "__start__":
-        yield f"{json.dumps({'type': 'on_start', 'thread_id': thread_id})}"
-      if name == "course_title_response":
-        yield f"{json.dumps({'type': 'on_course_title_question', 'thread_id': thread_id, 
-                             'question': data['input']['qort']['question']})}"
-      if name == "get_answer":
-        yield f"{json.dumps({'type': 'on_prerequisite_questions', 'thread_id': thread_id, 
-                             'questions': data['input']['questions']})}"
-      if name == "content_creator_pause":
-        print("Content creator pause node reached:", data)
-        course_outline = data["input"]["course_outline"]
-        course_progress = data["input"].get("course_progress", [0, 0])
-        outline = data["input"]["course_outline"]
-        if course_progress[0] >= len(outline) and course_progress[1] >= len(outline[-1]["subtopics"]):
-          # course complete
-          yield f"{json.dumps({'type': 'on_course_complete', 'thread_id': thread_id})}"
-        else:
-          subtopic_to_generate = course_outline[course_progress[0]]["subtopics"][course_progress[1]]
-          yield f"{json.dumps({'type': 'on_content_creation_start', 'thread_id': thread_id, 
-                               'subtopic_title': subtopic_to_generate['subtopic_title'],
-                               'subtopic_target': subtopic_to_generate['subtopic_target'], 'course_progress': course_progress})}"
-    elif event == "on_llm_stream":
-      if name == "generate_content":
-        yield f"{json.dumps({'type': 'on_content_stream', 'thread_id': thread_id, 'content': chunk['message']['content']})}"
-    elif event == "on_chain_end":
-      if name == "course_title_extractor":
-        if data["output"]["qort"]["course_title"]:
-          yield f"{json.dumps({'type': 'on_course_title_decided', 'thread_id': thread_id, 'course_title': data['output']['course_title']})}"
-      if name == "planner_app_runner":
-        yield f"{json.dumps({'type': 'on_course_outline_generated', 'thread_id': thread_id, 
-                             'course_outline': data['output']['course_outline']})}"
-      if name == "create_course_record":
-        yield f"{json.dumps({'type': 'on_course_record_created', 'thread_id': thread_id, 'course_id': data['output']['course_id']})}"
-      if name == "suggest_course_target":
-        yield f"{json.dumps({'type': 'on_course_target_suggestion', 'thread_id': thread_id, 
-                             'course_target_suggestion': data['output']['course_target_suggestion']})}"
-      if name == "get_course_target":
-        course_target_suggestion = graph.get_state(config).values["course_target_suggestion"]
-        target_index = data['output']['course_target']
-        yield f"{json.dumps({'type': 'on_course_target_picked', 'thread_id': thread_id, 
-                             'course_target_picked': course_target_suggestion['targets'][target_index]})}"
-      if name == "create_quiz":
-        yield f"{json.dumps({'type': 'on_quiz_created', 'thread_id': thread_id, 'quiz': data['output']['quiz']})}"
-      if name == "store_quiz_result":
-        print("Store quiz result node ended:", data['output'])
-        yield f"{json.dumps({'type': 'on_quiz_result_stored', 'thread_id': thread_id, 'quiz_results': data['output']['quiz_results']})}"
 
 
 @graph_app.post("/start")
@@ -138,7 +79,24 @@ async def rerun_last_node(request: Request, data: ThreadIdResponse):
   if len(checkpointers) < 2:
     raise HTTPException(400, "No previous state to revert to")
   # get the second last checkpointer
-  checkpoint = checkpointers[-1]
-  print("Reverting to checkpoint: ", checkpoint.config)
+  checkpoint = checkpointers[1]
+  # print("Reverting to checkpoint: ", checkpoint.config)
   checkpoint_id = checkpoint.config["configurable"]["checkpoint_id"]
   return StreamingResponse(stream_graph(input=None, thread_id=data.thread_id, checkpoint_id=checkpoint_id), media_type="text/event-stream")
+
+@graph_app.post("/rerunfromcheckpoint")
+async def rerun_from_checkpoint(request: Request, data: InterruptResume):
+  # check user owns the thread_id
+  user = request.state.user
+  if data.thread_id not in user.thread_ids:
+    raise HTTPException(403, "You do not have access to this thread_id")
+  return StreamingResponse(stream_graph(input=None, thread_id=data.thread_id, checkpoint_id=data.resume_from), media_type="text/event-stream")
+# @graph_app.get("/history")
+# async def get_history(thread_id: str):
+#   config = {"configurable": {"thread_id": thread_id}}
+#   history = graph.get_state_history(config)
+#   if history is None:
+#     raise HTTPException(404, f"thread_id: {thread_id} not found!")
+#   for cp in history:
+#     print("Checkpoint:", cp)
+#   return list(history)

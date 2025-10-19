@@ -56,7 +56,7 @@ def route_title_identifier(state: AgentState):
     return "course_title_response"
 
 def course_title_response(state: AgentState):
-  title_response = interrupt(value="Provide your answer to the clarifying question")
+  title_response = interrupt(value="Provide your answer to clarifying question")
   return {"messages": state["messages"] + [title_response]}
 
 def get_prerequisites(state: AgentState):
