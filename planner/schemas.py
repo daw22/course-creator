@@ -20,7 +20,7 @@ class CoursePlan(BaseModel):
     A tool to generate a detailed, structured course plan or outline,
     organized into chapters and sub-topics.
     """ 
-    chapters: List[Chapter] = Field(description="A list of chapters in the course")
+    chapters: List[Chapter] = Field(description="A list of chapters in the course. Always a list even when ther is a single chapter")
 
 class Targets(BaseModel):
     """Use this to create sub targets for a course, each target should one or two sentences long"""

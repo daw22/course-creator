@@ -13,9 +13,10 @@ async def stream_graph(input: Command, thread_id: Optional[str], checkpoint_id: 
     event = chunk["event"]
     name = chunk["name"]
     data = chunk["data"]
-    last_snapshot = list(graph.get_state_history(config))[0]
-    if last_snapshot:
-      config = last_snapshot.config
+    snapshots = list(graph.get_state_history(config))
+    if snapshots and len(snapshots) > 0:
+      last_snapshot = snapshots[0]
+      config  = last_snapshot.config
     if event == "on_chain_start":
       # this are the interrupt nodes
       if name == "__start__":
@@ -49,6 +50,10 @@ async def stream_graph(input: Command, thread_id: Optional[str], checkpoint_id: 
         print(f"Interrupt chunk - {name}:", data["chunk"]["__interrupt__"])
         # yield f"{json.dumps({'type': 'on_interrupt', 'config': config, 'interrupt': data['chunk']['__interrupt__'].value})}"
     elif event == "on_chain_end":
+      # need to send the previous checkpoint for a possible replay
+      previous_snapshot = list(graph.get_state_history(config))[1]
+      if previous_snapshot:
+        config = previous_snapshot.config
       if name == "course_title_extractor":
         if data["output"]["qort"]["course_title"]:
           yield f"event: on_course_title_decided\ndata: {json.dumps({'config': config, 'course_title': data['output']['course_title']})}\n\n"
@@ -59,9 +64,10 @@ async def stream_graph(input: Command, thread_id: Optional[str], checkpoint_id: 
       if name == "suggest_course_target":
         yield f"event: on_course_target_suggestion\ndata: {json.dumps({'config': config, 'course_target_suggestion': data['output']['course_target_suggestion']})}\n\n"
       if name == "get_course_target":
-        course_target_suggestion = graph.get_state(config).values["course_target_suggestion"]
+        print("state:", graph.get_state(config).values)
+        # course_target_suggestion = graph.get_state(config).values["course_target_suggestion"]
         target_index = data['output']['course_target']
-        yield f"event: on_course_target_picked\ndata: {json.dumps({'config': config, 'course_target_picked': course_target_suggestion['targets'][target_index]})}\n\n"
+        yield f"event: on_course_target_picked\ndata: {json.dumps({'config': config, 'course_target_picked': target_index})}\n\n"
       if name == "create_quiz":
         yield f"event: on_quiz_created\ndata: {json.dumps({'config': config, 'quiz': data['output']['quiz']})}\n\n"
       if name == "store_quiz_result":
