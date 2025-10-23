@@ -91,12 +91,17 @@ async def rerun_from_checkpoint(request: Request, data: InterruptResume):
   if data.thread_id not in user.thread_ids:
     raise HTTPException(403, "You do not have access to this thread_id")
   return StreamingResponse(stream_graph(input=None, thread_id=data.thread_id, checkpoint_id=data.resume_from), media_type="text/event-stream")
-# @graph_app.get("/history")
-# async def get_history(thread_id: str):
-#   config = {"configurable": {"thread_id": thread_id}}
-#   history = graph.get_state_history(config)
-#   if history is None:
-#     raise HTTPException(404, f"thread_id: {thread_id} not found!")
-#   for cp in history:
-#     print("Checkpoint:", cp)
-#   return list(history)
+
+@graph_app.post("/delete_thread")
+async def delete_thread(request: Request, data: ThreadIdResponse):
+  # check user owns the thread_id
+  user = request.state.user
+  if data.thread_id not in user.thread_ids:
+    raise HTTPException(403, "You do not have access to this thread_id")
+  # remove the thread_id from the user's profile
+  db.user_profiles.update_one({"_id": ObjectId(user.id)}, {"$pull": {"thread_ids": data.thread_id}})
+  # delete the course associated with the thread_id
+  db.courses.delete_many({"thread_id": data.thread_id})
+  # delete all checkpointers associated with the thread_id
+  checkpointer.adelete_thread(data.thread_id)
+  return {"message": "Thread deleted successfully"}
