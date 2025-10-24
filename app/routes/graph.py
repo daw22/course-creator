@@ -22,7 +22,7 @@ class ThreadIdResponse(BaseModel):
   thread_id: str
 
 class InterruptResume(BaseModel):
-  response: Any
+  response: Any | None
   thread_id: str
   resume_from: str
 
@@ -63,6 +63,8 @@ async def resume(request: Request, data: InterruptResume):
     # don't need to update state just resume
     input = Command(resume=user_response)
   elif data.resume_from == "content_creator_resume" and state.next[0] == "content_creator_runner":
+    input = Command(resume=user_response)
+  elif data.resume_from == "outline_approval":
     input = Command(resume=user_response)
   else:
     raise HTTPException(403, "Invalid response type")

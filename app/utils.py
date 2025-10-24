@@ -27,17 +27,19 @@ async def stream_graph(input: Command, thread_id: Optional[str], checkpoint_id: 
       if name == "get_answer":
         if last_snapshot and not last_snapshot.interrupts:
           yield f"event: on_prerequisite_questions\ndata: {json.dumps({'config': config, 'questions': data['input']['questions']})}\n\n"
+      if name =="outline_aproval":
+        print("before approval state", last_snapshot)
       if name == "content_creator_pause":
         course_outline = data["input"]["course_outline"]
         course_progress = data["input"].get("course_progress", [0, 0])
-        outline = data["input"]["course_outline"]
+        outline = data["input"]["course_outline"]["chapters"]
         if course_progress[0] >= len(outline) and course_progress[1] >= len(outline[-1]["subtopics"]):
           # course complete
           yield f"event: on_course_complete\ndata: {json.dumps({'config': config})}\n\n"
         else:
           last_snapshot = list(graph.get_state_history(config))[0]
           if last_snapshot and not last_snapshot.interrupts:
-            subtopic_to_generate = course_outline[course_progress[0]]["subtopics"][course_progress[1]]
+            subtopic_to_generate = course_outline["chapters"][course_progress[0]]["subtopics"][course_progress[1]]
             yield f"event: on_content_creation_start\ndata: {json.dumps({'config': config, 
                                  'subtopic_title': subtopic_to_generate['subtopic_title'],
                                  'subtopic_target': subtopic_to_generate['subtopic_target'], 'course_progress': course_progress})}\n\n"
@@ -57,7 +59,7 @@ async def stream_graph(input: Command, thread_id: Optional[str], checkpoint_id: 
       if name == "course_title_extractor":
         if data["output"]["qort"]["course_title"]:
           yield f"event: on_course_title_decided\ndata: {json.dumps({'config': config, 'course_title': data['output']['course_title']})}\n\n"
-      if name == "planner_app_runner":
+      if name == "course_outline_creator":
         yield f"event: on_course_outline_generated\ndata: {json.dumps({'config': config, 'course_outline': data['output']['course_outline']})}\n\n"
       if name == "create_course_record":
         yield f"event: on_course_record_created\ndata: {json.dumps({'config': config, 'course_id': data['output']['course_id']})}\n\n"

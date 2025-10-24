@@ -1,12 +1,13 @@
 from planner.state import PlannerState
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.types import interrupt
 from dotenv import load_dotenv
 
 from planner.schemas import Targets, CoursePlan
 load_dotenv()
 
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=1)
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
 
 def sub_target_creator(state: PlannerState):
   sys_msg = """You are an assistant for a course creator agent.
@@ -40,10 +41,14 @@ def sub_target_creator(state: PlannerState):
 
 def course_outline_creator(state: PlannerState):
   sys_msg = f"""You are an assistant for a course creator agent.
-  Your role is to create a course outline based on the course title, learning target, and sub targets.
+  Your role is to create a course outline based on the course title, learning target, 
+  and sub targets or improve an existing one if it is provided with a note on how to improve it.
   You will be provided with the course title, learning target, and sub targets.
+
   Responsibilities:
-    - Create a course outline that will help the user reach their learning target.
+    - if you are provided with an existing course outline and improvement notes, improve the course outline based on the notes.
+    - if not, create a new course outline that will help the user reach their learning target.
+  Rules:
     - Each chapter in the course outline should have a title and a list of subtopics.
     - use the sub targets to create chapters
     - Make sure the chapters and subtopics are in a logical order.
@@ -54,6 +59,8 @@ def course_outline_creator(state: PlannerState):
     course_title = {state.course_titile}
     learnning target = {state.learnning_target}
     sub targets = {state.targets_chapter}
+    existing course outline = {state.course_outline if state.course_outline else "N/A"}
+    improvement notes = {state.course_outline_improvement_note if state.course_outline_improvement_note else "N/A"}
     """
   
   llm_with_tool = llm.bind_tools([CoursePlan])
@@ -62,5 +69,15 @@ def course_outline_creator(state: PlannerState):
   tool_calls = getattr(response, "tool_calls", [])
   if tool_calls:
     args = tool_calls[0]["args"]
-    return {"course_outline": args["chapters"]}
+    return {"course_outline": args}
   return {"course_outline": None}
+
+def outline_aproval(state: PlannerState):
+  improvment_notes = interrupt("Are you ok with this course outline? If not, please provide notes on how to improve it.")
+  print("notes:", improvment_notes)
+  return {"course_outline_improvement_note": improvment_notes}
+
+def outline_router(state: PlannerState):
+  if state.course_outline_improvement_note:
+    return "course_outline_creator"
+  return "__end__"

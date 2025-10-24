@@ -173,7 +173,8 @@ def planner_app_runner(state: AgentState):
   planner_app_state = {
     "course_titile": state["course_title"],
     "learnning_target": state["course_target_suggestion"]["targets"][state["course_target"]],
-    "user_profficency": state["output"]
+    "user_profficency": state["output"],
+    "course_outline_improvement_note": None
   }
 
   planner_response = planner_app.invoke(planner_app_state)
@@ -184,13 +185,13 @@ def create_course_record(state: AgentState, config: RunnableConfig):
   new_course = Course(
     title=state["course_title"],
     target=state["course_target_suggestion"]["targets"][state["course_target"]],
-    outline=state["course_outline"],
+    outline=state["course_outline"].get("chapters", []),
     user_id=state["user_id"],
     thread_id=config["configurable"].get("thread_id", None)
   )
   result = db.courses.insert_one(new_course.model_dump())
   # add to user profile
-  db.users.update_one({"_id": state["user_id"]}, {"$push": {"courses": str(result.inserted_id)}})
+  db.user_profiles.update_one({"_id": state["user_id"]}, {"$push": {"courses": str(result.inserted_id)}})
   return {"course_id": str(result.inserted_id)}
 
 def content_creator_pause(state: AgentState):
@@ -202,7 +203,7 @@ def content_creator_init(state: AgentState):
   # add safe default for course_progress
   course_progress = state.get("course_progress", [0, 0])
   # if all content is created end the process
-  if course_progress[0] >= len(state["course_outline"]) and course_progress[1] >= len(state["course_outline"][course_progress[0]]["subtopics"]):
+  if course_progress[0] >= len(state["course_outline"]["chapters"]) and course_progress[1] >= len(state["course_outline"]["chapters"][course_progress[0]]["subtopics"]):
     return "__end__"
   else:
     return "content_creator_runner"
@@ -210,7 +211,7 @@ def content_creator_init(state: AgentState):
 def content_creator_runner(state: AgentState):
   # add safe default for course_progress
   course_progress = state.get("course_progress", [0, 0])
-  current_chapter = state["course_outline"][course_progress[0]]
+  current_chapter = state["course_outline"]["chapters"][course_progress[0]]
   current_topic = current_chapter["subtopics"][course_progress[1]]
 
   chapter_id = None
