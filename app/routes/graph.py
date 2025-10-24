@@ -92,7 +92,7 @@ async def rerun_from_checkpoint(request: Request, data: InterruptResume):
   user = request.state.user
   if data.thread_id not in user.thread_ids:
     raise HTTPException(403, "You do not have access to this thread_id")
-  return StreamingResponse(stream_graph(input=None, thread_id=data.thread_id, checkpoint_id=data.resume_from), media_type="text/event-stream")
+  return StreamingResponse(stream_graph(input=Command(resume=data.response), thread_id=data.thread_id, checkpoint_id=data.resume_from), media_type="text/event-stream")
 
 @graph_app.post("/delete_thread")
 async def delete_thread(request: Request, data: ThreadIdResponse):

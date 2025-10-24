@@ -123,7 +123,7 @@ def create_quiz(state: TopicState):
   return {"quiz": quiz_questions}
 
 def quiz_time(state: TopicState):
-  answers = interrupt("Please answer the quiz questions.")
+  answers = interrupt("quiz_time")
   return {"quiz_answers": answers}
 
 def quiz_router(state: TopicState):

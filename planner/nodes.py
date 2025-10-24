@@ -73,7 +73,7 @@ def course_outline_creator(state: PlannerState):
   return {"course_outline": None}
 
 def outline_aproval(state: PlannerState):
-  improvment_notes = interrupt("Are you ok with this course outline? If not, please provide notes on how to improve it.")
+  improvment_notes = interrupt("outline_approval")
   print("notes:", improvment_notes)
   return {"course_outline_improvement_note": improvment_notes}
 

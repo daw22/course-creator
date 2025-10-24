@@ -49,7 +49,7 @@ async def stream_graph(input: Command, thread_id: Optional[str], checkpoint_id: 
         yield f"event: on_content_stream\ndata: {json.dumps({'config': config, 'content': chunk['message']['content']})}\n\n"
     elif event == "on_chain_stream":
       if data.get("chunk") and "__interrupt__" in data["chunk"]:
-        print(f"Interrupt chunk - {name}:", data["chunk"]["__interrupt__"])
+        print(f"Interrupt chunk - {name}:", data["chunk"]["__interrupt__"][0].value)
         # yield f"{json.dumps({'type': 'on_interrupt', 'config': config, 'interrupt': data['chunk']['__interrupt__'].value})}"
     elif event == "on_chain_end":
       # need to send the previous checkpoint for a possible replay

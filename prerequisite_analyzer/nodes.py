@@ -56,7 +56,7 @@ def route_title_identifier(state: AgentState):
     return "course_title_response"
 
 def course_title_response(state: AgentState):
-  title_response = interrupt(value="Provide your answer to clarifying question")
+  title_response = interrupt(value="course_title_response")
   return {"messages": state["messages"] + [title_response]}
 
 def get_prerequisites(state: AgentState):
@@ -102,7 +102,7 @@ def prepare_questions(state: AgentState):
   return {"questions": response.tool_calls[0]["args"]["questions"]}
 
 def get_answer(state: AgentState):
-  answers = interrupt(value="Provide your answers to the prerequisite questions")
+  answers = interrupt(value="get_answer")
   return {"answers": answers}
 
 def route_human_input(state: AgentState):
@@ -159,7 +159,7 @@ def suggest_course_target(state: AgentState):
       return {"course_target_suggestion": None}
     
 def get_course_target(state: AgentState):
-    target = interrupt(value="Pick a target for the course")
+    target = interrupt(value="get_course_target")
     return {"course_target": target}
 
 def route_course_target(state: AgentState):
@@ -196,7 +196,7 @@ def create_course_record(state: AgentState, config: RunnableConfig):
 
 def content_creator_pause(state: AgentState):
   # interupt before content creation
-  start_generating = interrupt("Ready to start content creation.") 
+  start_generating = interrupt("content_creator_start") 
   return {}
 
 def content_creator_init(state: AgentState):
