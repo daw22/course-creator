@@ -74,7 +74,6 @@ def course_outline_creator(state: PlannerState):
 
 def outline_aproval(state: PlannerState):
   improvment_notes = interrupt("outline_approval")
-  print("notes:", improvment_notes)
   return {"course_outline_improvement_note": improvment_notes}
 
 def outline_router(state: PlannerState):

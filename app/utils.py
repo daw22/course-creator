@@ -13,6 +13,7 @@ async def stream_graph(input: Command, thread_id: Optional[str], checkpoint_id: 
     event = chunk["event"]
     name = chunk["name"]
     data = chunk["data"]
+    metadata = chunk["metadata"]
     snapshots = list(graph.get_state_history(config))
     if snapshots and len(snapshots) > 0:
       last_snapshot = snapshots[0]
@@ -45,12 +46,12 @@ async def stream_graph(input: Command, thread_id: Optional[str], checkpoint_id: 
                                  'subtopic_target': subtopic_to_generate['subtopic_target'], 'course_progress': course_progress})}\n\n"
     elif event == "on_chat_model_stream":
       print("CHAT MODEL STREAM CHUNK -", name, ":", chunk)
-      if name == "generate_content":
-        yield f"event: on_content_stream\ndata: {json.dumps({'config': config, 'content': chunk['message']['content']})}\n\n"
+      if metadata.get("langgraph_node", "") == "generate_content":
+        yield f"event: on_markdown_stream\ndata: {json.dumps({'config': config, 'markdown': chunk['data']['chunk'].content})}\n\n"
     elif event == "on_chain_stream":
       if data.get("chunk") and "__interrupt__" in data["chunk"]:
         print(f"Interrupt chunk - {name}:", data["chunk"]["__interrupt__"][0].value)
-        # yield f"{json.dumps({'type': 'on_interrupt', 'config': config, 'interrupt': data['chunk']['__interrupt__'].value})}"
+        yield f"event: on_chain_interrupt\ndata: {json.dumps({'config': config, 'interrupt': data['chunk']['__interrupt__'][0].value})}\n\n"
     elif event == "on_chain_end":
       # need to send the previous checkpoint for a possible replay
       previous_snapshot = list(graph.get_state_history(config))[1]

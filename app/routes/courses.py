@@ -50,6 +50,6 @@ async def delete_course(course_id: str, request: Request):
     chapter_ids = [str(chapter["_id"]) for chapter in chapters]
     dchapters = db.chapters.delete_many({"course_id": course_id})
     dsubtopics = db.subtopics.delete_many({"chapter_id": {"$in": chapter_ids}})
-    if dcourse.deleted_count == 0 or dchapters.deleted_count == 0 or dsubtopics.deleted_count == 0:
+    if dcourse.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Problem in deleting course or related content")
     return {"detail": "Course and related content deleted successfully"}

@@ -1,3 +1,4 @@
+from bson import ObjectId
 from prerequisite_analyzer.state import AgentState
 from prerequisite_analyzer.schemas import PrerequisitesList, QuestionsList, QuestionOrTitle, CurriculumPrerequisiteAnalysis, CourseTargetSuggestion
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -182,16 +183,17 @@ def planner_app_runner(state: AgentState):
   return {"course_outline": planner_response["course_outline"]}
 
 def create_course_record(state: AgentState, config: RunnableConfig):
+  print("outline exists??:", state["course_outline"]["chapters"])
   new_course = Course(
     title=state["course_title"],
     target=state["course_target_suggestion"]["targets"][state["course_target"]],
-    outline=state["course_outline"].get("chapters", []),
+    outline=state["course_outline"]["chapters"],
     user_id=state["user_id"],
     thread_id=config["configurable"].get("thread_id", None)
   )
   result = db.courses.insert_one(new_course.model_dump())
   # add to user profile
-  db.user_profiles.update_one({"_id": state["user_id"]}, {"$push": {"courses": str(result.inserted_id)}})
+  db.user_profiles.update_one({"_id": ObjectId(state["user_id"])}, {"$push": {"courses": str(result.inserted_id)}})
   return {"course_id": str(result.inserted_id)}
 
 def content_creator_pause(state: AgentState):

@@ -97,10 +97,12 @@ def store_content(state: TopicState):
     "chapter_id": state.chapter_id,
   }
   db.subtopics.insert_one(new_subtopic)
-  return {"course_progress": [state.course_progress[0], state.course_progress[1] + 1] 
-          if not state.last_subtopic 
-          else [state.course_progress[0] + 1, 0]
-}
+  course_progress = [state.course_progress[0], state.course_progress[1] + 1] if not state.last_subtopic else [state.course_progress[0] + 1, 0]
+  db.courses.update_one(
+    {"_id": ObjectId(state.course_id)},
+    {"$set": {"progress": course_progress}}
+  )
+  return {"course_progress": course_progress}
 
 def chapter_router(state: TopicState):
   #check if this is the last topic in the chapter
