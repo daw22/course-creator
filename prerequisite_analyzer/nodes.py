@@ -246,4 +246,11 @@ def content_creator_runner(state: AgentState):
     "last_subtopic": course_progress[1] == len(current_chapter["subtopics"]) - 1
   }
   content_creator_app_response = content_creator_app.invoke(content_creator_state)
-  return {"course_progress": content_creator_app_response["course_progress"]}
+  course_progress = content_creator_app_response["course_progress"]
+  course_complelted = len(state.outline["chapters"]) <= course_progress[0] and len(state.outline["chapters"][-1]["subtopics"]) <= course_progress[1]
+  if course_complelted:
+    db.courses.update_one(
+      {"_id": ObjectId(state["course_id"])},
+      {"$set": {"status": "completed"}}
+    )
+  return {"course_progress": course_progress }

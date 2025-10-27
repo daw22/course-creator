@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field, GetCoreSchemaHandler, GetJson
 from pydantic_core import core_schema
 from datetime import datetime, timezone
 from bson import ObjectId
-from typing import Any, Optional
+from typing import Any, Optional, Literal
 
 
 class PyObjectId(ObjectId):
@@ -69,6 +69,7 @@ class Course(BaseModel):
     target: str
     outline: list | None = []
     progress: list[int] = [0, 0]
+    status: Literal["in_progress", "completed"] = "in_progress"  # possible values: in_progress, completed
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     user_id: PyObjectId
