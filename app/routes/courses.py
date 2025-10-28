@@ -33,6 +33,16 @@ async def get_course(course_id: str, request: Request):
     course["_id"] = str(course["_id"])
     return course
 
+@courses_router.get("/by_thread/{thread_id}", response_model=Course)
+async def get_course_by_thread(thread_id: str, request: Request):
+    user = request.state.user
+    course = db.courses.find_one({"thread_id": thread_id, "user_id": ObjectId(user.id)})
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    course["user_id"] = str(course["user_id"])
+    course["_id"] = str(course["_id"])
+    return course
+
 @courses_router.delete("/{course_id}")
 async def delete_course(course_id: str, request: Request):
     user = request.state.user
@@ -48,8 +58,31 @@ async def delete_course(course_id: str, request: Request):
     # Also delete related chapters and subtopics
     chapters = db.chapters.find({"course_id": course_id})
     chapter_ids = [str(chapter["_id"]) for chapter in chapters]
-    dchapters = db.chapters.delete_many({"course_id": course_id})
-    dsubtopics = db.subtopics.delete_many({"chapter_id": {"$in": chapter_ids}})
+    db.chapters.delete_many({"course_id": course_id})
+    db.subtopics.delete_many({"chapter_id": {"$in": chapter_ids}})
     if dcourse.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Problem in deleting course or related content")
     return {"detail": "Course and related content deleted successfully"}
+
+@courses_router.get("/get_generated_content/{course_id}")
+async def get_generated_content(course_id: str):
+    chapters_cursor = db.chapters.find({"course_id": course_id}).sort("order", 1)
+    course_content = []
+    for chapter in chapters_cursor:
+        subtopics_cursor = db.subtopics.find({"chapter_id": str(chapter["_id"])}).sort("order", 1)
+        subtopics = []
+        for subtopic in subtopics_cursor:
+            subtopics.append({
+                "title": subtopic["title"],
+                "content": subtopic["content"],
+                "target": subtopic["target"],
+                "summary": subtopic.get("summary", ""),
+                "order": subtopic["order"]
+            })
+        course_content.append({
+            "chapter_title": chapter["title"],
+            "chapter_target": chapter["target"],
+            "chapter_order": chapter["order"],
+            "subtopics": subtopics
+        })
+    return {"course_content": course_content}

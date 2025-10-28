@@ -179,7 +179,6 @@ def planner_app_runner(state: AgentState):
   }
 
   planner_response = planner_app.invoke(planner_app_state)
-  #print(f"planner response: {planner_response}")
   return {"course_outline": planner_response["course_outline"]}
 
 def create_course_record(state: AgentState, config: RunnableConfig):
@@ -247,7 +246,7 @@ def content_creator_runner(state: AgentState):
   }
   content_creator_app_response = content_creator_app.invoke(content_creator_state)
   course_progress = content_creator_app_response["course_progress"]
-  course_complelted = len(state.outline["chapters"]) <= course_progress[0] and len(state.outline["chapters"][-1]["subtopics"]) <= course_progress[1]
+  course_complelted = len(state["course_outline"]["chapters"]) <= course_progress[0] and len(state["course_outline"]["chapters"][-1]["subtopics"]) <= course_progress[1]
   if course_complelted:
     db.courses.update_one(
       {"_id": ObjectId(state["course_id"])},
