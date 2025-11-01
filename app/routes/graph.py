@@ -48,6 +48,7 @@ async def resume(request: Request, data: InterruptResume):
   user_response = data.response
   config = {"configurable": {"thread_id": data.thread_id}}
   state = graph.get_state(config, subgraphs=True)
+  print("Resuming from state next:", state.next[0] if state.next else "No next", "for thread_id:", data.thread_id)
   if state is None:
     raise HTTPException(404, f"thread_id: {data.thread_id} not found!")
   if not state.next:
@@ -62,8 +63,8 @@ async def resume(request: Request, data: InterruptResume):
   elif data.resume_from == "content_creator_start" and state.next[0] == "content_creator_pause":
     # don't need to update state just resume
     input = Command(resume=user_response)
-  elif data.resume_from == "content_creator_resume" and state.next[0] == "content_creator_runner":
-    input = Command(resume=user_response)
+  # elif data.resume_from == "content_creator_resume" and state.next[0] == "content_creator_runner":
+  #   input = Command(resume=user_response)
   elif data.resume_from == "outline_approval":
     input = Command(resume=user_response)
   else:

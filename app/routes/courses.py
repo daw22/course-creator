@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from app.db.shemas import Course
 from pydantic import BaseModel
 from typing import List
+from prerequisite_analyzer.agent import app as graph
 
 courses_router = APIRouter(prefix="/courses", tags=["courses"], dependencies=[Depends(get_current_user)])
 
@@ -83,6 +84,14 @@ async def get_generated_content(course_id: str):
             "chapter_title": chapter["title"],
             "chapter_target": chapter["target"],
             "chapter_order": chapter["order"],
-            "subtopics": subtopics
+            "subtopics": subtopics,
+            "quiz": chapter.get("quiz", None)
         })
-    return {"course_content": course_content}
+    # also get the last checkpoint id from checkpointer
+    course_thread_id = db.courses.find_one({"_id": ObjectId(course_id)})["thread_id"]
+    config = {"configurable": {"thread_id": course_thread_id}}
+    snapshots = list(graph.get_state_history(config))
+    last_checkpoint = None
+    if snapshots and len(snapshots) > 0:
+        last_checkpoint = snapshots[0].config["configurable"].get("checkpoint_id", None)
+    return {"course_content": course_content, "last_checkpoint": last_checkpoint}

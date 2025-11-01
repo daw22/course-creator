@@ -57,34 +57,34 @@ def generate_content(state: TopicState):
   response = llm.invoke([SystemMessage(content=sys_msg)] + [HumanMessage(content="Generate the content now.")])
   return {"generated_content": response.content}
 
-def summary_and_questions(state: TopicState):
-  sys_msg = f"""You are an assistant for a course creator.  
-  Your role is to create a bulleted summary and questions for a specific topic within a chapter of a course.  
-  You will be provided with
-    - the topic title (the specific subject matter to be covered)
-    - the topic target (the target of the topic, i.e. what the learner should achieve after completing the topic)
-    - the generated content for the topic
-  Instructions:
-  - Create a concise bulleted summary that captures the key points of the content.
-  - Develop 1 to 3 multiple-choice questions that test understanding of the content.
-  - Each question should have one correct answer and three plausible distractors.
-  - Ensure that questions are clear and directly related to the content.
-  Finally, format your response using the SummaryAndQuestions schema.
+# def summary_and_questions(state: TopicState):
+#   sys_msg = f"""You are an assistant for a course creator.  
+#   Your role is to create a bulleted summary and questions for a specific topic within a chapter of a course.  
+#   You will be provided with
+#     - the topic title (the specific subject matter to be covered)
+#     - the topic target (the target of the topic, i.e. what the learner should achieve after completing the topic)
+#     - the generated content for the topic
+#   Instructions:
+#   - Create a concise bulleted summary that captures the key points of the content.
+#   - Develop 1 to 3 multiple-choice questions that test understanding of the content.
+#   - Each question should have one correct answer and three plausible distractors.
+#   - Ensure that questions are clear and directly related to the content.
+#   Finally, format your response using the SummaryAndQuestions schema.
 
-    Here is the information you need to create the summary and questions:
-    - Topic Title: {state.topic_title}
-    - Topic Target: {state.topic_target}
-    - Generated Content: {state.generated_content}
-  """
-  llm_with_tool = llm.bind_tools([SummaryAndQuestions])
-  response = llm_with_tool.invoke([SystemMessage(content=sys_msg), HumanMessage(content="Create the summary and questions now.")])
-  tool_calls = getattr(response, "tool_calls", [])
-  if tool_calls:
-    args = tool_calls[0]["args"]
-    return {"content_summary": args["summary"], "questions": args["questions"]}
-  else:
-    return {"content_summary": None, "questions": []}
-  
+#     Here is the information you need to create the summary and questions:
+#     - Topic Title: {state.topic_title}
+#     - Topic Target: {state.topic_target}
+#     - Generated Content: {state.generated_content}
+#   """
+#   llm_with_tool = llm.bind_tools([SummaryAndQuestions])
+#   response = llm_with_tool.invoke([SystemMessage(content=sys_msg), HumanMessage(content="Create the summary and questions now.")])
+#   tool_calls = getattr(response, "tool_calls", [])
+#   if tool_calls:
+#     args = tool_calls[0]["args"]
+#     return {"content_summary": args["summary"], "questions": args["questions"]}
+#   else:
+#     return {"content_summary": None, "questions": []}
+
 def store_content(state: TopicState):
   # create subtopic record
   new_subtopic = {
@@ -104,48 +104,48 @@ def store_content(state: TopicState):
   )
   return {"course_progress": course_progress}
 
-def chapter_router(state: TopicState):
-  #check if this is the last topic in the chapter
-  if state.last_subtopic:
-    return "create_quiz"
-  else:
-    return "__end__"
+# def chapter_router(state: TopicState):
+#   #check if this is the last topic in the chapter
+#   if state.last_subtopic:
+#     return "create_quiz"
+#   else:
+#     return "__end__"
   
-def create_quiz(state: TopicState):
-  # get all subtopics in the chapter
-  subtopics = db.subtopics.find({"chapter_id": state.chapter_id})
-  quiz_questions = []
-  for subtopic in subtopics:
-    quiz_questions.extend(subtopic["questions"])
-  # update chapter record with the quiz questions
-  db.chapters.update_one(
-    {"_id": ObjectId(state.chapter_id)},
-    {"$set": {"quiz": quiz_questions}}
-  )
-  return {"quiz": quiz_questions}
+# def create_quiz(state: TopicState):
+#   # get all subtopics in the chapter
+#   subtopics = db.subtopics.find({"chapter_id": state.chapter_id})
+#   quiz_questions = []
+#   for subtopic in subtopics:
+#     quiz_questions.extend(subtopic["questions"])
+#   # update chapter record with the quiz questions
+#   db.chapters.update_one(
+#     {"_id": ObjectId(state.chapter_id)},
+#     {"$set": {"quiz": quiz_questions}}
+#   )
+#   return {"quiz": quiz_questions}
 
-def quiz_time(state: TopicState):
-  answers = interrupt("quiz_time")
-  return {"quiz_answers": answers}
+# def quiz_time(state: TopicState):
+#   answers = interrupt("quiz_time")
+#   return {"quiz_answers": answers}
 
-def quiz_router(state: TopicState):
-  # check if the user repondend with answers and route accordingly
-  if isinstance(state.quiz_answers, list) and len(state.quiz_answers) == len(state.quiz):
-    return "store_quiz_result"
-  else:
-    return "quiz_time"
+# def quiz_router(state: TopicState):
+#   # check if the user repondend with answers and route accordingly
+#   if isinstance(state.quiz_answers, list) and len(state.quiz_answers) == len(state.quiz):
+#     return "store_quiz_result"
+#   else:
+#     return "quiz_time"
   
-def store_quiz_result(state: TopicState):
-  # store the quiz result
-  # for simplicity, we will just store the number of correct answers
-  correct_answers = 0
-  for i, answer in enumerate(state.quiz_answers):
-    if answer == state.quiz[i]["answer"]:
-      correct_answers += 1
-  # update chapter record with the quiz result
-  db.chapters.update_one(
-    {"_id": ObjectId(state.chapter_id)},
-    {"$set": {"quiz_result": [correct_answers, len(state.quiz)], "quiz_answers": state.quiz_answers}}
-  )
-  print("Quiz result stored: ", correct_answers, " out of ", len(state.quiz))
-  return {"quiz_results": [correct_answers, len(state.quiz)]}
+# def store_quiz_result(state: TopicState):
+#   # store the quiz result
+#   # for simplicity, we will just store the number of correct answers
+#   correct_answers = 0
+#   for i, answer in enumerate(state.quiz_answers):
+#     if answer == state.quiz[i]["answer"]:
+#       correct_answers += 1
+#   # update chapter record with the quiz result
+#   db.chapters.update_one(
+#     {"_id": ObjectId(state.chapter_id)},
+#     {"$set": {"quiz_result": [correct_answers, len(state.quiz)], "quiz_answers": state.quiz_answers}}
+#   )
+#   print("Quiz result stored: ", correct_answers, " out of ", len(state.quiz))
+#   return {"quiz_results": [correct_answers, len(state.quiz)]}
