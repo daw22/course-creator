@@ -5,6 +5,6 @@ import os
 import certifi
 load_dotenv()
 
-client = MongoClient(os.getenv("DB_URI"), tls=True, tlsCAFile=certifi.where())
+client = MongoClient(os.getenv("DB_URI"), tls=True, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=20000,)
 db = client["course_creator"]
 checkpointer = MongoDBSaver(db)
