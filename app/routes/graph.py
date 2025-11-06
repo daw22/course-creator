@@ -60,7 +60,7 @@ async def resume(request: Request, data: InterruptResume):
     input = Command(resume=user_response)
   elif data.resume_from == "get_course_target" and state.next[0] == "get_course_target":
     input = Command(resume=user_response)
-  elif data.resume_from == "content_creator_start" and state.next[0] == "content_creator_pause":
+  elif data.resume_from == "content_creator_start":
     # don't need to update state just resume
     input = Command(resume=user_response)
   # elif data.resume_from == "content_creator_resume" and state.next[0] == "content_creator_runner":

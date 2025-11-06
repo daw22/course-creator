@@ -79,13 +79,16 @@ async def signup(data: SignupData):
 @router.post("/token")
 async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
     user = db.users.find_one({"username": form_data.username})
+    users = db.users.find();
+    for u in users:
+        print(u)
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     
     if not passwored_hasher.verify(form_data.password, user["hashed_password"]):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     
-    access_token_expires = timedelta(minutes=15)
+    access_token_expires = timedelta(minutes=720)
     access_token = create_access_token(
         data={"sub": str(user["_id"])}, expires_delta=access_token_expires
     )
@@ -124,7 +127,7 @@ async def refresh_token(request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
-    access_token_expires = timedelta(minutes=7*24*60)
+    access_token_expires = timedelta(minutes=720)
     user["_id"] = str(user["_id"])
     access_token = create_access_token(
         data={"sub": user["_id"]}, expires_delta=access_token_expires
