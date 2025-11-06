@@ -67,10 +67,6 @@ async def stream_graph(input: Command, thread_id: Optional[str], checkpoint_id: 
         if name == "get_course_target":
           target_index = data['output']['course_target']
           yield f"event: on_course_target_picked\ndata: {json.dumps({'config': config, 'course_target_picked': target_index})}\n\n"
-        # if name == "create_quiz":
-        #   yield f"event: on_quiz_created\ndata: {json.dumps({'config': config, 'quiz': data['output']['quiz']})}\n\n"
-        # if name == "store_quiz_result":
-        #   yield f"event: on_quiz_result_stored\ndata: {json.dumps({'config': config, 'quiz_results': data['output']['quiz_results']})}\n\n"
         if metadata.get("langgraph_node", "") == "generate_content":
           yield f"event: on_content_generation_complete\ndata: {json.dumps({'config': config})}\n\n"
   except Exception as e:
