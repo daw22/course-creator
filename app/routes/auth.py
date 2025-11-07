@@ -37,7 +37,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=720)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, os.getenv("JWT_SECRET"), algorithm=ALGORITHM)
     return encoded_jwt
@@ -88,13 +88,19 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
     if not passwored_hasher.verify(form_data.password, user["hashed_password"]):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     
-    access_token_expires = timedelta(minutes=720)
+    access_token_expires = timedelta(minutes=15)
     access_token = create_access_token(
         data={"sub": str(user["_id"])}, expires_delta=access_token_expires
     )
     refresh_token_expires = timedelta(days=7)
     refresh_token = str(uuid4())
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, max_age=7*24*60*60)
+    response.set_cookie(key="refresh_token", 
+                        value=refresh_token, 
+                        httponly=True, 
+                        max_age=7*24*60*60,
+                        secure=True,
+                        samesite="None"
+                        )
     #store refresh token in db
     db.refresh_tokens.insert_one({
         "user_id": str(user["_id"]),
@@ -127,7 +133,7 @@ async def refresh_token(request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
-    access_token_expires = timedelta(minutes=720)
+    access_token_expires = timedelta(minutes=15)
     user["_id"] = str(user["_id"])
     access_token = create_access_token(
         data={"sub": user["_id"]}, expires_delta=access_token_expires
