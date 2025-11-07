@@ -37,7 +37,16 @@ async def start(request: Request, data: StartInput):
   new_thread_id = str(uuid4())
   request.state.user.thread_ids.append(new_thread_id)
   db.user_profiles.update_one({"_id": ObjectId(request.state.user.id)}, {"$push": {"thread_ids": new_thread_id}})
-  return StreamingResponse(stream_graph(input=state, thread_id=new_thread_id), media_type="text/event-stream")
+  return StreamingResponse(stream_graph(input=state, thread_id=new_thread_id), 
+                          media_type="text/event-stream",
+                          headers={
+                               "Cache-Control": "no-cache",
+                               "Connection": "keep-alive",
+                               "X-Accel-Buffering": "no",  # Prevent proxy buffering
+                               "Access-Control-Allow-Origin": "https://ai-course-creator-frontend.vercel.app/",
+                               "Access-Control-Allow-Credentials": "true",
+                           },
+                           )
 
 @graph_app.post("/resume")
 async def resume(request: Request, data: InterruptResume):
@@ -69,7 +78,16 @@ async def resume(request: Request, data: InterruptResume):
     input = Command(resume=user_response)
   else:
     raise HTTPException(403, "Invalid response type")
-  return StreamingResponse(stream_graph(input=input, thread_id=data.thread_id), media_type="text/event-stream")
+  return StreamingResponse(stream_graph(input=input, thread_id=data.thread_id), 
+                           media_type="text/event-stream",
+                           headers={
+                               "Cache-Control": "no-cache",
+                               "Connection": "keep-alive",
+                               "X-Accel-Buffering": "no",  # Prevent proxy buffering
+                               "Access-Control-Allow-Origin": "https://ai-course-creator-frontend.vercel.app/",
+                               "Access-Control-Allow-Credentials": "true",
+                           },
+                          )
 
 @graph_app.post("/rerunlastnode")
 async def rerun_last_node(request: Request, data: ThreadIdResponse):
