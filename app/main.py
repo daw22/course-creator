@@ -17,7 +17,8 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://ai-course-creator-e3lc.onrender.com",
-        "https://ai-course-creator-frontend.vercel.app"
+        "https://ai-course-creator-frontend.vercel.app",
+        "https://ai-course-creator-frontend-cthv.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
