@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from app.routes.auth import router as auth_router
@@ -28,6 +28,12 @@ app.add_middleware(
 client = MongoClient(os.getenv("DB_URI"))
 db = client["course_creator"]
 
+router = APIRouter(prefix="")
+@router.get("/")
+async def health_check():
+    return {"status": "ok"}
+
+app.include_router(router)
 app.include_router(auth_router)
 app.include_router(graph_app)
 app.include_router(courses_router)
